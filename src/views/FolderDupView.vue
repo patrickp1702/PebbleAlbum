@@ -229,6 +229,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <div class="font-semibold whitespace-nowrap">Duplicate Folder Finder</div>
       <div class="text-xs text-pebble-text-dim truncate min-w-0 hidden md:block">Find folders &amp; files duplicated within or across your selected drives — by name{{ matchBy.includes('date') ? ' + date' : '' }}.</div>
       <div class="flex-1" />
+      <AppButton v-if="report" size="sm" variant="ghost" icon="plus" :disabled="busy" title="Back to the folder list to start a different scan" @click="report = null">New scan</AppButton>
       <AppButton v-if="report" size="sm" variant="secondary" icon="rotate-cw" :disabled="busy" title="Re-scan, reusing everything that has not changed" @click="sync">Sync</AppButton>
     </header>
 
@@ -278,6 +279,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <div class="text-sm text-pebble-text-dim tabular-nums">
         {{ (progress?.dirs ?? 0).toLocaleString() }} folders · {{ (progress?.files ?? 0).toLocaleString() }} files
         <span v-if="(progress?.reusedDirs ?? 0) > 0"> · {{ (progress?.reusedDirs ?? 0).toLocaleString() }} reused</span>
+      </div>
+      <!-- The scan reports running counts but no total, so the bar is indeterminate. -->
+      <div class="w-72 h-1.5 rounded-full bg-pebble-pressed overflow-hidden" aria-hidden="true">
+        <div class="h-full w-1/3 rounded-full bg-pebble-accent pa-indeterminate"></div>
       </div>
       <div class="text-xs font-mono text-pebble-text-dim max-w-lg truncate h-4">{{ progress?.currentPath }}</div>
     </div>

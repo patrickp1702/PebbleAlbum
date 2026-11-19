@@ -10,6 +10,10 @@ const estPages = computed(() => {
   const perPage = (draft.config.minImagesPerPage + draft.config.maxImagesPerPage) / 2;
   return Math.ceil(usable.value / Math.max(1, perPage)) + 2; // + cover + back cover
 });
+/** Human labels for the frequency ids (same wording as the Proverbs step). */
+const FREQUENCY_LABEL: Record<string, string> = {
+  every: 'every page', every2: 'every 2nd page', every3: 'every 3rd page', flagged: 'only flagged pages', none: 'not shown',
+};
 const theme = computed(() => getTheme(draft.meta.theme));
 const rows = computed(() => [
   ['Album', draft.meta.name],
@@ -17,7 +21,7 @@ const rows = computed(() => [
   ['Images', `${usable.value} usable`],
   ['Dimensions', `${draft.meta.albumWidth} × ${draft.meta.albumHeight}px @ ${draft.meta.dpi} DPI`],
   ['Theme', theme.value.name],
-  ['Proverbs', `${draft.meta.proverbs.length} (${draft.config.proverbFrequency})`],
+  ['Proverbs', `${draft.meta.proverbs.length} added · ${FREQUENCY_LABEL[draft.config.proverbFrequency] ?? draft.config.proverbFrequency}`],
   ['Estimated pages', `~${estPages.value}`],
 ]);
 </script>

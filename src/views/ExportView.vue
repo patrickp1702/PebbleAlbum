@@ -73,44 +73,47 @@ async function doExport() {
 
     <main class="flex-1 overflow-auto">
       <div class="max-w-2xl mx-auto w-full px-8 py-8 space-y-7">
-        <section class="space-y-3">
-          <h2 class="pa-section">Format &amp; range</h2>
-          <div class="grid grid-cols-2 gap-4">
-            <AppDropdown label="Format" :model-value="req.format"
-              :options="[{value:'pdf',label:'PDF (multi-page)'},{value:'jpeg',label:'JPEG sequence'},{value:'png',label:'PNG sequence'}]"
-              @update:model-value="v => req.format = v as ExportFormat" />
-            <AppDropdown label="Range" :model-value="req.range"
-              :options="[{value:'all',label:'All pages'},{value:'current',label:'Current page'},{value:'custom',label:'Custom range'}]"
-              @update:model-value="v => req.range = v as any" />
-          </div>
-
-          <div v-if="req.range === 'custom'" class="grid grid-cols-2 gap-4">
-            <label class="block"><span class="pa-label">From page</span><input type="number" v-model.number="req.rangeStart" class="pa-input w-full mt-1 tabular-nums" /></label>
-            <label class="block"><span class="pa-label">To page</span><input type="number" v-model.number="req.rangeEnd" class="pa-input w-full mt-1 tabular-nums" /></label>
-          </div>
-
-          <AppSlider v-if="req.format === 'jpeg'" label="JPEG quality" :min="50" :max="100" v-model="req.quality" unit="%" :reset-to="95" />
-        </section>
-
-        <section class="space-y-3">
-          <h2 class="pa-section">Options</h2>
-          <div class="flex flex-wrap gap-x-6 gap-y-2.5">
-            <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" v-model="req.includeBleedMarks" /> Bleed marks</label>
-            <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" v-model="req.includePageNumbers" /> Page numbers</label>
-            <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" v-model="req.openAfter" /> Open folder after export</label>
-          </div>
-        </section>
-
-        <section class="space-y-3">
-          <h2 class="pa-section">Destination</h2>
-          <div>
-            <div class="pa-label mb-1">Output folder</div>
-            <div class="flex gap-2">
-              <input v-model="req.outputDir" class="pa-input flex-1 min-w-0 h-8 !py-0 font-mono text-xs" spellcheck="false" aria-label="Output folder" />
-              <AppButton variant="secondary" icon="folder" @click="pickDir">Browse…</AppButton>
+        <!-- Settings are locked while an export runs (they could not apply to it). -->
+        <fieldset :disabled="busy" class="space-y-7 min-w-0 border-0 p-0 m-0 transition-opacity" :class="busy ? 'opacity-50' : ''">
+          <section class="space-y-3">
+            <h2 class="pa-section">Format &amp; range</h2>
+            <div class="grid grid-cols-2 gap-4">
+              <AppDropdown label="Format" :model-value="req.format"
+                :options="[{value:'pdf',label:'PDF (multi-page)'},{value:'jpeg',label:'JPEG sequence'},{value:'png',label:'PNG sequence'}]"
+                @update:model-value="v => req.format = v as ExportFormat" />
+              <AppDropdown label="Range" :model-value="req.range"
+                :options="[{value:'all',label:'All pages'},{value:'current',label:'Current page'},{value:'custom',label:'Custom range'}]"
+                @update:model-value="v => req.range = v as any" />
             </div>
-          </div>
-        </section>
+
+            <div v-if="req.range === 'custom'" class="grid grid-cols-2 gap-4">
+              <label class="block"><span class="pa-label">From page</span><input type="number" v-model.number="req.rangeStart" class="pa-input w-full mt-1 tabular-nums" /></label>
+              <label class="block"><span class="pa-label">To page</span><input type="number" v-model.number="req.rangeEnd" class="pa-input w-full mt-1 tabular-nums" /></label>
+            </div>
+
+            <AppSlider v-if="req.format === 'jpeg'" label="JPEG quality" :min="50" :max="100" v-model="req.quality" unit="%" :reset-to="95" />
+          </section>
+
+          <section class="space-y-3">
+            <h2 class="pa-section">Options</h2>
+            <div class="flex flex-wrap gap-x-6 gap-y-2.5">
+              <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" v-model="req.includeBleedMarks" /> Bleed marks</label>
+              <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" v-model="req.includePageNumbers" /> Page numbers</label>
+              <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" v-model="req.openAfter" /> Open folder after export</label>
+            </div>
+          </section>
+
+          <section class="space-y-3">
+            <h2 class="pa-section">Destination</h2>
+            <div>
+              <div class="pa-label mb-1">Output folder</div>
+              <div class="flex gap-2">
+                <input v-model="req.outputDir" class="pa-input flex-1 min-w-0 h-8 !py-0 font-mono text-xs" spellcheck="false" aria-label="Output folder" />
+                <AppButton variant="secondary" icon="folder" @click="pickDir">Browse…</AppButton>
+              </div>
+            </div>
+          </section>
+        </fieldset>
 
         <!-- Print checklist: a warning, not a blocker -->
         <section v-if="warnings.length" class="rounded-lg border border-pebble-warning/40 bg-pebble-warning/10 p-3.5 flex gap-3" role="note">

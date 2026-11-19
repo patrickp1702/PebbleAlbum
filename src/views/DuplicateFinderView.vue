@@ -201,7 +201,7 @@ async function doMove() {
     </header>
 
     <!-- Live analysis progress -->
-    <div v-if="analyzing" class="shrink-0 px-4 py-2.5 bg-pebble-surface border-b border-pebble-border">
+    <div v-if="analyzing && records.length" class="shrink-0 px-4 py-2.5 bg-pebble-surface border-b border-pebble-border">
       <div class="flex justify-between text-xs text-pebble-text-dim mb-1.5">
         <span>{{ progressLabel }}</span>
         <span v-if="progress?.total" class="tabular-nums text-pebble-text">{{ progressPct }}%</span>
@@ -242,6 +242,20 @@ async function doMove() {
         <AppButton size="lg" icon="folder" :disabled="analyzing" @click="pickFolder">Choose folder…</AppButton>
         <template #hint>Nothing is deleted — moved photos can be dragged back anytime.</template>
       </AppEmptyState>
+      <!-- First analysis of a folder: nothing to show yet, so the status IS the page. -->
+      <div v-else-if="analyzing && !records.length" class="flex flex-col items-center text-center gap-3 mt-24" role="status">
+        <div class="h-12 w-12 rounded-xl bg-pebble-surface-2 border border-pebble-border grid place-items-center text-pebble-accent-soft animate-pulse">
+          <AppIcon name="images" :size="22" />
+        </div>
+        <div class="text-lg font-semibold">{{ progress?.phase === 'analyze' ? 'Analysing photos…' : 'Scanning folder…' }}</div>
+        <div class="text-sm text-pebble-text-dim tabular-nums">{{ progressLabel }}</div>
+        <div class="w-72 h-1.5 rounded-full bg-pebble-pressed overflow-hidden">
+          <div class="h-full rounded-full bg-pebble-accent transition-[width] duration-200"
+               :class="progress?.total ? '' : 'animate-pulse'"
+               :style="{ width: (progress?.total ? progressPct : 20) + '%' }"></div>
+        </div>
+        <div v-if="progress?.total" class="text-xs text-pebble-text-dim tabular-nums">{{ progressPct }}%</div>
+      </div>
       <div v-else-if="!analyzing && !groups.length && !ungrouped.length && !error" class="text-sm text-pebble-text-dim text-center mt-16">No photos found.</div>
 
       <!-- Duplicate groups -->
@@ -309,7 +323,7 @@ async function doMove() {
                   :class="marked[r.relativePath] ? 'ring-pebble-danger' : 'ring-transparent hover:ring-pebble-border-strong'">
             <img v-if="smallSrc(r.relativePath)" :src="smallSrc(r.relativePath)" class="w-40 h-28 object-cover" :class="marked[r.relativePath] ? 'opacity-60' : ''" />
             <div v-else class="w-40 h-28 animate-pulse" />
-            <span class="absolute top-2 left-2 inline-flex items-center h-5 px-1.5 rounded bg-pebble-warning text-black text-2xs font-semibold">Blurry</span>
+            <span class="absolute top-2 left-2 inline-flex items-center h-5 px-1.5 rounded bg-pebble-warning text-pebble-on-warning text-2xs font-semibold">Blurry</span>
             <span class="absolute top-2 right-2 inline-flex items-center gap-1 h-5 px-1.5 rounded text-2xs font-semibold"
                   :class="marked[r.relativePath] ? 'bg-pebble-danger-fill text-white' : 'bg-black/65 text-white'">
               <AppIcon v-if="marked[r.relativePath]" name="check" :size="11" :stroke="2.5" />{{ marked[r.relativePath] ? 'Move' : 'Keep' }}

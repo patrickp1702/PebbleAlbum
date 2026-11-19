@@ -45,6 +45,7 @@ import AppIcon from '@/components/ui/AppIcon.vue';
 import AppTabs from '@/components/ui/AppTabs.vue';
 import AppEmptyState from '@/components/ui/AppEmptyState.vue';
 import { useAddPhoto } from '@/composables/useAddPhoto';
+import { MOD } from '@/composables/keyboard';
 import AlbumCanvas from '@/components/canvas/AlbumCanvas.vue';
 import PropertiesPanel from '@/components/editor/PropertiesPanel.vue';
 import TextPropertiesPanel from '@/components/editor/TextPropertiesPanel.vue';
@@ -88,8 +89,6 @@ const TRAY_TABS = [
   { id: 'images', label: 'Photos', icon: 'images' },
   { id: 'themes', label: 'Themes', icon: 'palette' },
 ] as const;
-/** Platform modifier glyph for the shortcut hints in tooltips. */
-const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
 const selCount = computed(() => c.selected.length);
 const src = (r: ImageRecord) => thumbs[r.relativePath] ?? '';
@@ -329,7 +328,8 @@ onBeforeUnmount(() => {
         <span class="font-semibold">Collage Creator</span>
         <span class="text-xs text-pebble-text-dim">Step 1 of 2 · Pick photos</span>
         <div class="flex-1"></div>
-        <AppButton size="sm" variant="ghost" title="Discard this collage and start over" @click="clearCollage">Clear</AppButton>
+        <AppButton size="sm" variant="ghost" :disabled="!c.folder && !c.records.length"
+                   :title="c.folder || c.records.length ? 'Discard this collage and start over' : 'Nothing to clear yet'" @click="clearCollage">Clear</AppButton>
         <AppButton size="sm" icon="arrow-right" :disabled="!selCount || building"
                    :title="selCount ? 'Open the selected photos in the collage editor' : 'Select at least one photo first'"
                    @click="create">{{ building ? 'Building…' : `Edit collage (${selCount})` }}</AppButton>
@@ -345,7 +345,8 @@ onBeforeUnmount(() => {
                 <AppIcon name="folder" :size="15" class="text-pebble-text-dim" />
                 <span class="text-xs font-mono truncate" :class="c.folder ? '' : 'text-pebble-text-off'" :title="c.folder">{{ c.folder || 'No folder selected' }}</span>
               </div>
-              <AppButton variant="secondary" :disabled="loadingFolder" @click="pickFolder">{{ loadingFolder ? 'Scanning…' : 'Pick folder…' }}</AppButton>
+              <!-- First run: the ONE "Pick folder…" is the empty state on the right. -->
+              <AppButton v-if="c.records.length" variant="secondary" :disabled="loadingFolder" @click="pickFolder">{{ loadingFolder ? 'Scanning…' : 'Change…' }}</AppButton>
             </div>
             <div class="pa-section pt-1">Starting point</div>
             <AppDropdown label="Layout" :model-value="c.layoutId" :options="layoutOptions" @update:model-value="v => c.layoutId = String(v)" />

@@ -95,7 +95,7 @@ async function doDelete() {
 
 <template>
   <div class="h-full w-full overflow-auto bg-pebble-bg">
-    <div class="mx-auto w-full max-w-5xl px-8 py-8">
+    <div class="mx-auto w-full max-w-[1320px] px-10 py-8">
       <!-- Header: identity, quiet -->
       <header class="flex items-center gap-3 mb-8">
         <div class="h-9 w-9 shrink-0 rounded-lg bg-pebble-accent text-pebble-on-accent grid place-items-center">
@@ -146,12 +146,12 @@ async function doDelete() {
                class="group relative rounded-lg bg-pebble-surface border border-pebble-border cursor-pointer overflow-hidden transition-colors hover:bg-pebble-hover hover:border-pebble-border-strong"
                :title="`Open ${r.name}`"
                @click="open(r.path)" @keydown.enter.self="open(r.path)">
-            <div class="aspect-video bg-pebble-surface-2 flex items-center justify-center text-pebble-text-off overflow-hidden">
+            <div class="aspect-video bg-pebble-hover flex items-center justify-center text-pebble-text-off overflow-hidden">
               <img v-if="r.coverThumbnail" :src="r.coverThumbnail" class="object-cover w-full h-full" alt="" />
               <AppIcon v-else name="image" :size="28" :stroke="1.5" />
             </div>
             <div class="px-3 py-2.5">
-              <div class="text-sm font-medium truncate">{{ r.name }}</div>
+              <div class="text-sm font-medium truncate" :title="r.name">{{ r.name }}</div>
               <div class="text-xs text-pebble-text-dim truncate mt-0.5">{{ r.pageCount }} pages · {{ r.imageCount }} photos · {{ new Date(r.lastOpened).toLocaleDateString() }}</div>
             </div>
             <button type="button"
