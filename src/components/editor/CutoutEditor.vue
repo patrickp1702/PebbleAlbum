@@ -41,6 +41,9 @@ import { maskPathData, buildMaskPath } from '@/engine/maskShapes';
 import { loadImageDataUrl } from '@/engine/imageLoader';
 import AppSlider from '@/components/ui/AppSlider.vue';
 import AppButton from '@/components/ui/AppButton.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
+import AppIconButton from '@/components/ui/AppIconButton.vue';
+import AppSegmented from '@/components/ui/AppSegmented.vue';
 import type { AlbumPage, PageImage } from '@shared/pebble.types';
 
 const props = defineProps<{ filename: string; imageId?: string | null }>();
@@ -775,91 +778,119 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-[90] bg-black/80 flex">
+  <div class="fixed inset-0 z-[90] bg-pebble-bg flex">
     <!-- Canvas area: the page under the photo, or a checkerboard -->
-    <div ref="host" :class="['relative flex-1 overflow-hidden', inContext && showPage ? 'bg-[#16161c]' : 'pa-checker']">
+    <div ref="host" :class="['relative flex-1 min-w-0 overflow-hidden', inContext && showPage ? 'bg-pebble-bg' : 'pa-checker']">
       <canvas ref="view" class="absolute inset-0 w-full h-full touch-none"
               :style="{ cursor: panMode ? (panning ? 'grabbing' : 'grab') : 'none' }"
               @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp"
               @pointercancel="onPointerCancel" @lostpointercapture="onLostCapture" @pointerleave="onPointerLeave"
               @wheel="onWheel" @contextmenu.prevent />
-      <div v-if="loading" class="absolute inset-0 flex items-center justify-center text-white/80">Loading photo…</div>
-      <div v-if="aiBusy" class="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-sm">
-        ✨ Removing background… (first run downloads the model)
+      <div v-if="loading" class="absolute inset-0 flex items-center justify-center text-sm text-pebble-text-dim">Loading photo…</div>
+      <div v-if="aiBusy" class="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 text-white text-sm">
+        <AppIcon name="sparkles" :size="18" /> Removing background… (first run downloads the model)
       </div>
     </div>
 
-    <!-- Tool rail -->
-    <div class="w-72 shrink-0 bg-pebble-surface border-l border-pebble-border flex flex-col">
-      <div class="px-3 py-2.5 border-b border-pebble-border flex items-center justify-between">
-        <div>
-          <div class="text-sm font-medium">{{ inContext ? '✎ Erase / restore' : '✂ Cutout studio' }}</div>
-          <div class="text-2xs text-pebble-text-dim truncate max-w-[180px]">{{ filename }}</div>
+    <!-- Tool panel: tool choice → brush → history → view → extras; the primary action is pinned at the foot -->
+    <div class="w-80 shrink-0 bg-pebble-surface border-l border-pebble-border flex flex-col">
+      <header class="pl-3 pr-2 h-12 shrink-0 border-b border-pebble-border flex items-center gap-2.5">
+        <AppIcon :name="inContext ? 'eraser' : 'scissors'" :size="18" class="text-pebble-text-dim" />
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-semibold leading-tight">{{ inContext ? 'Erase / restore' : 'Cutout studio' }}</div>
+          <div class="text-2xs text-pebble-text-dim truncate" :title="filename">{{ filename }}</div>
         </div>
-        <button class="h-7 px-2 rounded bg-pebble-surface-2 border border-pebble-border text-xs hover:border-pebble-accent" @click="requestClose">✕</button>
-      </div>
+        <AppIconButton icon="x" label="Close" shortcut="Esc" @click="requestClose" />
+      </header>
 
-      <div class="flex-1 overflow-auto p-3 space-y-3 text-sm">
-        <AppButton size="sm" block :disabled="aiBusy || loading" @click="removeBackgroundAI">✨ Remove background (AI)</AppButton>
+      <div class="flex-1 min-h-0 overflow-auto p-3 space-y-4 text-sm">
+        <!-- Tool: the one choice that changes what the pointer does -->
+        <section class="space-y-1.5">
+          <div class="pa-section">Tool</div>
+          <AppSegmented v-model="tool" size="lg" :options="[
+            { value: 'erase', label: 'Erase', icon: 'eraser', title: 'Erase — brush parts away (E)' },
+            { value: 'restore', label: 'Restore', icon: 'brush', title: 'Restore — paint the photo back (R)' },
+            { value: 'pan', label: 'Pan', icon: 'move', title: 'Pan the view (or hold Space)' },
+          ]" />
+        </section>
 
-        <div>
-          <div class="text-xs text-pebble-text-dim mb-1">Brush</div>
-          <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
-            <button v-for="t in (['erase','restore','pan'] as const)" :key="t" @click="tool = t"
-                    :class="['flex-1 py-1 rounded capitalize', tool === t ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">
-              {{ t === 'erase' ? '⌫ Erase' : t === 'restore' ? '↺ Restore' : '✋ Pan' }}
+        <section class="space-y-2">
+          <div class="pa-section">Brush</div>
+          <AppSlider label="Size" :min="4" :max="500" :model-value="brushSize" unit="px" @update:model-value="setBrushSize" />
+          <AppSlider label="Opacity" :min="1" :max="100" v-model="brushOpacity" unit="%" />
+          <AppSlider label="Hardness" :min="0" :max="100" v-model="brushHardness" unit="%" />
+          <p class="pa-hint">
+            Low opacity + soft hardness, then brush the edges/corners in passes —
+            each pass fades a little more, blending the photo into the page.
+            100% opacity erases outright; Restore paints the photo back.
+          </p>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 pa-hint">
+            <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">[</kbd><kbd class="pa-kbd">]</kbd> size</span>
+            <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">E</kbd><kbd class="pa-kbd">R</kbd> erase / restore</span>
+            <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">Space</kbd> pan</span>
+            <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">Scroll</kbd> zoom</span>
+          </div>
+        </section>
+
+        <section class="space-y-1.5">
+          <div class="pa-section">History</div>
+          <div class="flex gap-2">
+            <button type="button" class="pa-btn flex-1" :disabled="!canUndo" title="Undo (Ctrl/⌘ Z)" @click="undo()">
+              <AppIcon name="undo" :size="14" /> Undo
+            </button>
+            <button type="button" class="pa-btn flex-1" :disabled="!canRedo" title="Redo (Ctrl/⌘ Shift Z)" @click="redo()">
+              <AppIcon name="redo" :size="14" /> Redo
             </button>
           </div>
-        </div>
+          <AppButton size="sm" variant="ghost" icon="rotate-ccw" block :disabled="loading" title="Restore everything (undoable)" @click="resetMask">Reset (restore everything)</AppButton>
+        </section>
 
-        <AppSlider label="Size" :min="4" :max="500" :model-value="brushSize" unit="px" @update:model-value="setBrushSize" />
-        <AppSlider label="Opacity" :min="1" :max="100" v-model="brushOpacity" unit="%" />
-        <AppSlider label="Hardness" :min="0" :max="100" v-model="brushHardness" unit="%" />
-        <p class="text-2xs text-pebble-text-dim leading-relaxed">
-          Low opacity + soft hardness, then brush the edges/corners in passes —
-          each pass fades a little more, blending the photo into the page.
-          100% opacity erases outright; Restore paints the photo back.
-          <b>[ ]</b> size · <b>E</b>/<b>R</b> erase/restore · hold <b>Space</b> to pan · scroll to zoom.
-        </p>
+        <section class="space-y-1.5">
+          <div class="pa-section">View</div>
+          <div class="flex items-center justify-between gap-2">
+            <label v-if="inContext" class="flex items-center gap-2 text-xs cursor-pointer">
+              <input type="checkbox" v-model="showPage" @change="requestPaint()" /> Show page
+            </label>
+            <button type="button" class="pa-btn ml-auto" @click="fitView"><AppIcon name="maximize" :size="14" /> Fit view</button>
+          </div>
+        </section>
 
-        <div class="flex gap-2">
-          <button v-for="b in ([{ id: 'undo', on: canUndo, label: '↶ Undo', act: undo }, { id: 'redo', on: canRedo, label: '↷ Redo', act: redo }])" :key="b.id"
-                  :disabled="!b.on" @click="b.act()"
-                  :class="['flex-1 py-1.5 rounded-lg text-xs font-medium border transition',
-                           b.on ? 'bg-pebble-surface-2 border-pebble-accent/70 text-pebble-text hover:bg-pebble-accent/15'
-                                : 'bg-transparent border-pebble-border/50 text-pebble-text-dim/50 cursor-not-allowed']">
-            {{ b.label }}
-          </button>
-        </div>
-        <div class="flex gap-2">
-          <AppButton size="sm" variant="ghost" block :disabled="loading" @click="resetMask">Reset (restore everything)</AppButton>
-        </div>
-        <div class="flex items-center justify-between gap-2">
-          <label v-if="inContext" class="flex items-center gap-1.5 text-xs">
-            <input type="checkbox" v-model="showPage" @change="requestPaint()" /> Show page
+        <section class="space-y-1.5">
+          <div class="pa-section">Automatic</div>
+          <AppButton variant="secondary" icon="sparkles" block :disabled="aiBusy || loading" @click="removeBackgroundAI">Remove background (AI)</AppButton>
+        </section>
+
+        <section class="space-y-1.5">
+          <div class="pa-section">Sticker</div>
+          <label class="block">
+            <span class="pa-label block mb-1">Sticker name</span>
+            <input v-model="stickerName" class="pa-input w-full" placeholder="my sticker" />
           </label>
-          <button class="ml-auto h-7 px-2 rounded bg-pebble-surface-2 border border-pebble-border text-xs hover:border-pebble-accent" @click="fitView">⤢ Fit view</button>
-        </div>
-
-        <div class="pt-2 border-t border-pebble-border space-y-2">
-          <AppButton v-if="inContext" size="sm" block :disabled="saving || loading" @click="applyMask">✓ Apply</AppButton>
-          <p v-if="inContext" class="text-2xs text-pebble-text-dim -mt-1">Non-destructive: the original photo is kept, so you can reopen and restore anytime.</p>
-          <label class="text-xs block">Sticker name
-            <input v-model="stickerName" class="pa-input w-full mt-1 py-1" placeholder="my sticker" />
-          </label>
-          <AppButton size="sm" variant="secondary" block :disabled="loading" @click="saveAsSticker">☆ Save as sticker</AppButton>
-        </div>
+          <!-- In sticker mode saving IS the screen's main action, so it lives in the footer instead. -->
+          <AppButton v-if="inContext" variant="secondary" icon="star" block :disabled="loading" @click="saveAsSticker">Save as sticker</AppButton>
+        </section>
       </div>
+
+      <!-- Pinned footer: the one primary action never scrolls away -->
+      <footer class="shrink-0 border-t border-pebble-border bg-pebble-surface p-3 space-y-2">
+        <p v-if="inContext" class="pa-hint">Non-destructive: the original photo is kept, so you can reopen and restore anytime.</p>
+        <div class="flex gap-2">
+          <AppButton variant="ghost" size="lg" @click="requestClose">Cancel</AppButton>
+          <AppButton v-if="inContext" size="lg" icon="check" class="flex-1" :disabled="saving || loading" @click="applyMask">Apply</AppButton>
+          <AppButton v-else size="lg" icon="star" class="flex-1" :disabled="loading" @click="saveAsSticker">Save as sticker</AppButton>
+        </div>
+      </footer>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* Transparency checkerboard (sticker mode / page hidden) — neutral greys. */
 .pa-checker {
-  background-color: #202028;
+  background-color: #1e1e21;
   background-image:
-    linear-gradient(45deg, #2e2e3a 25%, transparent 25%, transparent 75%, #2e2e3a 75%),
-    linear-gradient(45deg, #2e2e3a 25%, transparent 25%, transparent 75%, #2e2e3a 75%);
+    linear-gradient(45deg, #2a2a2e 25%, transparent 25%, transparent 75%, #2a2a2e 75%),
+    linear-gradient(45deg, #2a2a2e 25%, transparent 25%, transparent 75%, #2a2a2e 75%);
   background-size: 24px 24px;
   background-position: 0 0, 12px 12px;
 }

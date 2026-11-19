@@ -12,6 +12,10 @@ import { useEditorStore } from '@/stores/editorStore';
 import AppSlider from '@/components/ui/AppSlider.vue';
 import AppColorPicker from '@/components/ui/AppColorPicker.vue';
 import AppButton from '@/components/ui/AppButton.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
+import AppIconButton from '@/components/ui/AppIconButton.vue';
+import AppSegmented from '@/components/ui/AppSegmented.vue';
+import AppTabs from '@/components/ui/AppTabs.vue';
 import { defaultEffects, boxForFit } from '@/engine/collageComposer';
 import { BORDER_FRAMES } from '@/engine/borderFrames';
 import { FILTER_PRESETS } from '@/engine/fabricFilters';
@@ -24,12 +28,19 @@ const project = useProjectStore();
 const editor = useEditorStore();
 const tab = ref<'transform' | 'adjust' | 'filters' | 'border' | 'shadow' | 'caption'>('transform');
 const TABS = [
-  { id: 'transform', label: 'Move' },
-  { id: 'adjust', label: 'Adjust' },
-  { id: 'filters', label: 'Filters' },
-  { id: 'border', label: 'Frame' },
-  { id: 'shadow', label: 'Shadow' },
-  { id: 'caption', label: 'Caption' },
+  { id: 'transform', label: 'Move', icon: 'move' },
+  { id: 'adjust', label: 'Adjust', icon: 'sliders' },
+  { id: 'filters', label: 'Filters', icon: 'filters' },
+  { id: 'border', label: 'Frame', icon: 'frame' },
+  { id: 'shadow', label: 'Shadow', icon: 'shadow' },
+  { id: 'caption', label: 'Caption', icon: 'caption' },
+] as const;
+// Option lists for the segmented controls (presentation only).
+const FIT_OPTIONS = [{ value: 'cover', label: 'Fill frame' }, { value: 'contain', label: 'Fit whole' }] as const;
+const BORDER_KINDS = [{ value: 'line', label: 'Line' }, { value: 'frame', label: 'Decorative frame' }] as const;
+const LINE_STYLES = [
+  { value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' },
+  { value: 'dotted', label: 'Dotted' }, { value: 'double', label: 'Double' },
 ] as const;
 
 /** Set the fit mode and return the photo to AUTO (re-fit + re-centre). */
@@ -221,177 +232,193 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
 
 <template>
   <div v-if="img" class="flex flex-col h-full">
-    <div class="px-3 py-2 border-b border-pebble-border flex items-center gap-2">
-      <button class="shrink-0 h-7 px-2 rounded bg-pebble-surface-2 border border-pebble-border text-xs hover:border-pebble-accent"
-              title="Back to page settings" @click="back">‹ Back</button>
+    <!-- What is selected -->
+    <header class="pl-1.5 pr-3 h-12 shrink-0 border-b border-pebble-border flex items-center gap-1.5">
+      <AppIconButton icon="chevron-left" label="Back to page" @click="back" />
       <div class="min-w-0">
-        <div class="text-xs text-pebble-text-dim">Selected image</div>
-        <div class="text-sm truncate">{{ img.filename }}</div>
+        <div class="pa-section">Photo</div>
+        <div class="text-sm font-medium truncate" :title="img.filename">{{ img.filename }}</div>
       </div>
+    </header>
+
+    <!-- Quick action, available on every tab: the erase / restore studio -->
+    <div class="px-3 py-2.5 border-b border-pebble-border shrink-0">
+      <div class="flex gap-2">
+        <button type="button" class="pa-btn flex-1"
+                title="Brush away parts of this photo to blend it into the page — and paint them back anytime; the original is kept. Also: AI background removal, save as sticker."
+                @click="editor.openCutout(img.filename, img.id)">
+          <AppIcon name="eraser" :size="15" /> Erase / restore
+        </button>
+        <AppButton v-if="img.eraseMask" variant="ghost" title="Show the whole photo again (undoable)"
+                   @click="editor.setEraseMask(img, undefined, 'Clear erasing')">Clear</AppButton>
+      </div>
+      <p class="pa-hint mt-1.5">Brush parts away to blend the photo in — non-destructive, restore anytime.</p>
     </div>
 
-    <nav class="flex text-2xs border-b border-pebble-border">
-      <button v-for="t in TABS" :key="t.id"
-              @click="tab = t.id"
-              :class="['flex-1 py-2', tab === t.id ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim']">
-        {{ t.label }}
-      </button>
-    </nav>
+    <AppTabs v-model="tab" :tabs="TABS" stacked />
 
-    <div class="flex-1 overflow-auto p-3 space-y-3 text-sm">
+    <div class="flex-1 min-h-0 overflow-auto p-3 space-y-4 text-sm">
       <!-- Move / Transform -->
       <template v-if="tab === 'transform'">
-        <div v-if="img.slotRect" class="space-y-2 pb-2 border-b border-pebble-border">
+        <section v-if="img.slotRect" class="space-y-2.5">
+          <div class="pa-section">Frame</div>
           <div>
-            <div class="text-xs text-pebble-text-dim mb-1">Fit to frame</div>
-            <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
-              <button v-for="m in (['cover','contain'] as const)" :key="m" @click="applyFit(m)"
-                      :class="['flex-1 py-1 rounded capitalize', (img.fit || 'cover') === m ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">{{ m === 'cover' ? 'Fill frame' : 'Fit whole' }}</button>
-            </div>
+            <div class="pa-label mb-1">Fit to frame</div>
+            <AppSegmented :model-value="(img.fit || 'cover') as 'cover' | 'contain'" :options="FIT_OPTIONS" @update:model-value="applyFit" />
           </div>
           <div>
-            <div class="text-xs text-pebble-text-dim mb-1">Cell aspect ratio</div>
+            <div class="pa-label mb-1">Cell aspect ratio</div>
             <div class="flex gap-1">
-              <button v-for="a in ASPECTS" :key="a.label" @click="setCellAspect(a.r)"
-                      class="flex-1 py-1 rounded text-2xs bg-pebble-surface-2 border border-pebble-border text-pebble-text-dim hover:border-pebble-accent hover:text-pebble-text">
+              <button v-for="a in ASPECTS" :key="a.label" type="button" @click="setCellAspect(a.r)"
+                      class="pa-tile flex-1 h-7 text-2xs font-medium tabular-nums">
                 {{ a.label }}
               </button>
             </div>
           </div>
-          <div class="pt-1">
-            <div class="text-xs text-pebble-text-dim mb-1">Focal point (keeps the cell filled, no distortion)</div>
-            <AppSlider label="Focus ↔" :min="0" :max="100" :model-value="focusX" unit="%" @update:model-value="v => setFocus('x', v)" />
-            <AppSlider label="Focus ↕" :min="0" :max="100" :model-value="focusY" unit="%" @update:model-value="v => setFocus('y', v)" />
-            <AppSlider label="Cover zoom" :min="100" :max="300" :model-value="coverZoomPct" unit="%" @update:model-value="setCoverZoom" />
-            <p class="text-2xs text-pebble-text-dim">Drag Focus ↕ down to keep a face near the top in view.</p>
+          <div class="space-y-2">
+            <div class="pa-label">Focal point <span class="text-pebble-text-off">· keeps the cell filled, no distortion</span></div>
+            <AppSlider label="Focus horizontal" :min="0" :max="100" :reset-to="50" :model-value="focusX" unit="%" @update:model-value="v => setFocus('x', v)" />
+            <AppSlider label="Focus vertical" :min="0" :max="100" :reset-to="50" :model-value="focusY" unit="%" @update:model-value="v => setFocus('y', v)" />
+            <AppSlider label="Cover zoom" :min="100" :max="300" :reset-to="100" :model-value="coverZoomPct" unit="%" @update:model-value="setCoverZoom" />
+            <p class="pa-hint">Drag Focus vertical down to keep a face near the top in view.</p>
           </div>
-          <AppSlider label="Manual zoom in frame" :min="0" :max="400" :model-value="frameZoom" unit="%"
+          <AppSlider label="Manual zoom in frame" :min="0" :max="400" :reset-to="100" :model-value="frameZoom" unit="%"
                      @update:model-value="setZoom" />
-          <button class="w-full py-1.5 rounded text-xs font-medium"
-                  :class="editor.cropImageId === img.id ? 'bg-pebble-accent text-white' : 'bg-pebble-surface-2 border border-pebble-border text-pebble-text'"
+          <button type="button" class="pa-btn w-full" :aria-pressed="editor.cropImageId === img.id"
+                  :class="editor.cropImageId === img.id ? '!bg-pebble-accent !border-pebble-accent !text-pebble-on-accent' : ''"
                   @click="toggleCrop">
-            {{ editor.cropImageId === img.id ? '✓ Adjusting inside — click to finish' : '✥ Adjust photo inside frame' }}
+            <AppIcon :name="editor.cropImageId === img.id ? 'check' : 'crop'" :size="15" />
+            {{ editor.cropImageId === img.id ? 'Adjusting inside — click to finish' : 'Adjust photo inside frame' }}
           </button>
-          <p class="text-2xs text-pebble-text-dim">
-            Select a cell to move/resize it. <b>Double-click</b> a photo (or use the button) to pan/zoom the picture <b>inside</b> the frame.
+          <p class="pa-hint">
+            Select a cell to move/resize it. <b class="text-pebble-text">Double-click</b> a photo (or use the button) to pan/zoom the picture <b class="text-pebble-text">inside</b> the frame.
           </p>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <label class="text-xs">X<input type="number" v-model.number="img.position.x" class="pa-input w-full py-1" @input="img!.manual = true; live()" /></label>
-          <label class="text-xs">Y<input type="number" v-model.number="img.position.y" class="pa-input w-full py-1" @input="img!.manual = true; live()" /></label>
-          <label class="text-xs">W<input type="number" v-model.number="img.position.width" class="pa-input w-full py-1" @input="img!.manual = true; live()" /></label>
-          <label class="text-xs">H<input type="number" v-model.number="img.position.height" class="pa-input w-full py-1" @input="img!.manual = true; live()" /></label>
-        </div>
-        <AppSlider label="Rotation" :min="-180" :max="180" v-model="img.position.rotation" unit="°" @update:model-value="live" />
-        <div v-if="!img.slotRect" class="flex gap-2">
-          <AppButton size="sm" variant="secondary" block @click="rotate90(-1)">↺ 90°</AppButton>
-          <AppButton size="sm" variant="secondary" block @click="rotate90(1)">↻ 90°</AppButton>
-        </div>
-        <AppSlider label="Opacity" :min="0" :max="100" :model-value="Math.round(img.opacity*100)" unit="%" @update:model-value="v => { img!.opacity = v/100; live(); }" />
-        <div class="flex gap-2">
-          <AppButton size="sm" variant="secondary" block @click="flip('X')">⇋ Flip H</AppButton>
-          <AppButton size="sm" variant="secondary" block @click="flip('Y')">⇵ Flip V</AppButton>
-        </div>
-        <div class="flex gap-2">
-          <AppButton size="sm" block @click="editor.openCutout(img.filename, img.id)">✎ Erase / restore parts</AppButton>
-          <AppButton v-if="img.eraseMask" size="sm" variant="ghost" title="Show the whole photo again (undoable)"
-                     @click="editor.setEraseMask(img, undefined, 'Clear erasing')">Clear erasing</AppButton>
-        </div>
-        <p class="text-2xs text-pebble-text-dim -mt-1">Brush away parts of this photo right on the page to blend it in (soft edges, any opacity) — and paint them back anytime; the original is kept. Also: AI background removal, save as sticker.</p>
+        </section>
+
+        <section class="space-y-2">
+          <div class="pa-section">Position &amp; size</div>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="pa-field"><span>X</span><input type="number" v-model.number="img.position.x" @input="img!.manual = true; live()" /></label>
+            <label class="pa-field"><span>Y</span><input type="number" v-model.number="img.position.y" @input="img!.manual = true; live()" /></label>
+            <label class="pa-field"><span>W</span><input type="number" v-model.number="img.position.width" @input="img!.manual = true; live()" /></label>
+            <label class="pa-field"><span>H</span><input type="number" v-model.number="img.position.height" @input="img!.manual = true; live()" /></label>
+          </div>
+        </section>
+
+        <section class="space-y-2">
+          <div class="pa-section">Rotate &amp; flip</div>
+          <AppSlider label="Rotation" :min="-180" :max="180" v-model="img.position.rotation" unit="°" @update:model-value="live" />
+          <div v-if="!img.slotRect" class="flex gap-2">
+            <button type="button" class="pa-btn flex-1" title="Rotate 90° counter-clockwise" @click="rotate90(-1)"><AppIcon name="rotate-ccw" :size="14" /> 90°</button>
+            <button type="button" class="pa-btn flex-1" title="Rotate 90° clockwise" @click="rotate90(1)"><AppIcon name="rotate-cw" :size="14" /> 90°</button>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" class="pa-btn flex-1" :class="img.position.flipX ? '!border-pebble-accent !text-pebble-accent-soft' : ''" @click="flip('X')"><AppIcon name="flip-h" :size="14" /> Flip H</button>
+            <button type="button" class="pa-btn flex-1" :class="img.position.flipY ? '!border-pebble-accent !text-pebble-accent-soft' : ''" @click="flip('Y')"><AppIcon name="flip-v" :size="14" /> Flip V</button>
+          </div>
+        </section>
+
+        <section class="space-y-2">
+          <div class="pa-section">Opacity</div>
+          <AppSlider label="Opacity" :min="0" :max="100" :reset-to="100" :model-value="Math.round(img.opacity*100)" unit="%" @update:model-value="v => { img!.opacity = v/100; live(); }" />
+        </section>
       </template>
 
       <!-- Adjust (light / colour / detail) — all live, PicsArt-style -->
       <template v-else-if="tab === 'adjust'">
         <div class="flex gap-2">
-          <button class="flex-1 py-1.5 rounded text-xs bg-pebble-surface-2 border border-pebble-border select-none active:bg-pebble-accent active:text-white"
+          <button type="button" class="pa-btn flex-1 select-none active:!bg-pebble-accent active:!border-pebble-accent active:!text-pebble-on-accent"
+                  title="Press and hold to see the untouched photo"
                   @pointerdown.prevent="compare(true)" @pointerup="compare(false)" @pointerleave="compare(false)">
-            👁 Hold to compare
+            <AppIcon name="eye" :size="15" /> Hold to compare
           </button>
-          <AppButton size="sm" variant="ghost" @click="resetEffects">Reset</AppButton>
+          <AppButton variant="ghost" icon="rotate-ccw" title="Reset all adjustments and the filter" @click="resetEffects">Reset</AppButton>
         </div>
-        <div class="text-2xs uppercase tracking-wider text-pebble-text-dim pt-1">Light</div>
-        <AppSlider label="Exposure" :min="-100" :max="100" :model-value="Math.round((img.effects.exposure ?? 0)*100)" @update:model-value="v => { img!.effects.exposure=v/100; liveFx(); }" />
-        <AppSlider label="Brightness" :min="-100" :max="100" :model-value="Math.round(img.effects.brightness*100)" @update:model-value="v => { img!.effects.brightness=v/100; liveFx(); }" />
-        <AppSlider label="Contrast" :min="-100" :max="100" :model-value="Math.round(img.effects.contrast*100)" @update:model-value="v => { img!.effects.contrast=v/100; liveFx(); }" />
-        <AppSlider label="Highlights" :min="-100" :max="100" :model-value="Math.round((img.effects.highlights ?? 0)*100)" @update:model-value="v => { img!.effects.highlights=v/100; liveFx(); }" />
-        <AppSlider label="Shadows" :min="-100" :max="100" :model-value="Math.round((img.effects.shadows ?? 0)*100)" @update:model-value="v => { img!.effects.shadows=v/100; liveFx(); }" />
-        <div class="text-2xs uppercase tracking-wider text-pebble-text-dim pt-1">Colour</div>
-        <AppSlider label="Saturation" :min="-100" :max="100" :model-value="Math.round(img.effects.saturation*100)" @update:model-value="v => { img!.effects.saturation=v/100; liveFx(); }" />
-        <AppSlider label="Temperature" :min="-100" :max="100" :model-value="Math.round((img.effects.temperature ?? 0)*100)" @update:model-value="v => { img!.effects.temperature=v/100; liveFx(); }" />
-        <AppSlider label="Tint" :min="-100" :max="100" :model-value="Math.round((img.effects.tint ?? 0)*100)" @update:model-value="v => { img!.effects.tint=v/100; liveFx(); }" />
-        <AppSlider label="Hue" :min="-180" :max="180" :model-value="Math.round(img.effects.hue ?? 0)" unit="°" @update:model-value="v => { img!.effects.hue=v; liveFx(); }" />
-        <div class="text-2xs uppercase tracking-wider text-pebble-text-dim pt-1">Detail</div>
-        <AppSlider label="Sharpen" :min="0" :max="100" :model-value="Math.round(Math.max(0, (img.effects.sharpness ?? 1) - 1)*100)" @update:model-value="v => { img!.effects.sharpness=1+v/100; liveFx(); }" />
-        <AppSlider label="Blur" :min="0" :max="20" v-model="img.effects.blur" unit="px" @update:model-value="liveFx" />
-        <AppSlider label="Grain" :min="0" :max="100" :model-value="Math.round(img.effects.noise*100)" @update:model-value="v => { img!.effects.noise=v/100; liveFx(); }" />
-        <AppSlider label="Vignette" :min="0" :max="100" :model-value="Math.round(img.effects.vignette*100)" @update:model-value="v => { img!.effects.vignette=v/100; liveFx(); }" />
+        <section class="space-y-2">
+          <div class="pa-section">Light</div>
+          <AppSlider label="Exposure" :min="-100" :max="100" :model-value="Math.round((img.effects.exposure ?? 0)*100)" @update:model-value="v => { img!.effects.exposure=v/100; liveFx(); }" />
+          <AppSlider label="Brightness" :min="-100" :max="100" :model-value="Math.round(img.effects.brightness*100)" @update:model-value="v => { img!.effects.brightness=v/100; liveFx(); }" />
+          <AppSlider label="Contrast" :min="-100" :max="100" :model-value="Math.round(img.effects.contrast*100)" @update:model-value="v => { img!.effects.contrast=v/100; liveFx(); }" />
+          <AppSlider label="Highlights" :min="-100" :max="100" :model-value="Math.round((img.effects.highlights ?? 0)*100)" @update:model-value="v => { img!.effects.highlights=v/100; liveFx(); }" />
+          <AppSlider label="Shadows" :min="-100" :max="100" :model-value="Math.round((img.effects.shadows ?? 0)*100)" @update:model-value="v => { img!.effects.shadows=v/100; liveFx(); }" />
+        </section>
+        <section class="space-y-2">
+          <div class="pa-section">Colour</div>
+          <AppSlider label="Saturation" :min="-100" :max="100" :model-value="Math.round(img.effects.saturation*100)" @update:model-value="v => { img!.effects.saturation=v/100; liveFx(); }" />
+          <AppSlider label="Temperature" :min="-100" :max="100" :model-value="Math.round((img.effects.temperature ?? 0)*100)" @update:model-value="v => { img!.effects.temperature=v/100; liveFx(); }" />
+          <AppSlider label="Tint" :min="-100" :max="100" :model-value="Math.round((img.effects.tint ?? 0)*100)" @update:model-value="v => { img!.effects.tint=v/100; liveFx(); }" />
+          <AppSlider label="Hue" :min="-180" :max="180" :model-value="Math.round(img.effects.hue ?? 0)" unit="°" @update:model-value="v => { img!.effects.hue=v; liveFx(); }" />
+        </section>
+        <section class="space-y-2">
+          <div class="pa-section">Detail</div>
+          <AppSlider label="Sharpen" :min="0" :max="100" :reset-to="0" :model-value="Math.round(Math.max(0, (img.effects.sharpness ?? 1) - 1)*100)" @update:model-value="v => { img!.effects.sharpness=1+v/100; liveFx(); }" />
+          <AppSlider label="Blur" :min="0" :max="20" :reset-to="0" v-model="img.effects.blur" unit="px" @update:model-value="liveFx" />
+          <AppSlider label="Grain" :min="0" :max="100" :reset-to="0" :model-value="Math.round(img.effects.noise*100)" @update:model-value="v => { img!.effects.noise=v/100; liveFx(); }" />
+          <AppSlider label="Vignette" :min="0" :max="100" :reset-to="0" :model-value="Math.round(img.effects.vignette*100)" @update:model-value="v => { img!.effects.vignette=v/100; liveFx(); }" />
+        </section>
       </template>
 
       <!-- Filters (named presets over YOUR photo, with strength) -->
       <template v-else-if="tab === 'filters'">
         <div class="flex gap-1 flex-wrap">
-          <button v-for="c in FILTER_CATS" :key="c.id" @click="filterCat = c.id"
-                  :class="['px-2 py-0.5 rounded-full text-2xs', filterCat === c.id ? 'bg-pebble-accent text-white' : 'bg-pebble-surface-2 text-pebble-text-dim']">
+          <button v-for="c in FILTER_CATS" :key="c.id" type="button" @click="filterCat = c.id" :aria-pressed="filterCat === c.id"
+                  :class="['h-6 px-2.5 rounded-full text-2xs font-medium transition-colors',
+                           filterCat === c.id ? 'bg-pebble-accent text-pebble-on-accent' : 'bg-pebble-surface-2 text-pebble-text-dim hover:text-pebble-text hover:bg-pebble-hover']">
             {{ c.label }}
           </button>
         </div>
         <div class="grid grid-cols-3 gap-1.5">
-          <button v-for="p in visiblePresets" :key="p.id" @click="setFilter(p.id)"
-                  :class="['rounded-lg overflow-hidden border text-left', img.effects.filter === p.id ? 'border-pebble-accent ring-1 ring-pebble-accent' : 'border-pebble-border hover:border-pebble-accent/50']">
+          <button v-for="p in visiblePresets" :key="p.id" type="button" @click="setFilter(p.id)"
+                  :class="['pa-tile overflow-hidden text-left', img.effects.filter === p.id ? 'is-active' : '']">
             <div class="aspect-square bg-pebble-bg">
               <img v-if="presetThumbs[p.id]" :src="presetThumbs[p.id]" class="w-full h-full object-cover" :alt="p.label" />
             </div>
-            <div class="px-1 py-0.5 text-2xs truncate"
-                 :class="img.effects.filter === p.id ? 'text-pebble-accent' : 'text-pebble-text-dim'">{{ p.label }}</div>
+            <div class="px-1.5 py-1 text-2xs truncate"
+                 :class="img.effects.filter === p.id ? 'text-pebble-text font-medium' : ''">{{ p.label }}</div>
           </button>
         </div>
         <AppSlider v-if="img.effects.filter && img.effects.filter !== 'none'"
-                   label="Strength" :min="0" :max="100" :model-value="filterStrengthPct" unit="%"
+                   label="Strength" :min="0" :max="100" :reset-to="100" :model-value="filterStrengthPct" unit="%"
                    @update:model-value="v => { img!.effects.filterStrength = v/100; liveFx(); }" />
-        <div class="flex gap-2">
-          <button class="flex-1 py-1.5 rounded text-xs bg-pebble-surface-2 border border-pebble-border select-none active:bg-pebble-accent active:text-white"
-                  @pointerdown.prevent="compare(true)" @pointerup="compare(false)" @pointerleave="compare(false)">
-            👁 Hold to compare
-          </button>
-        </div>
+        <button type="button" class="pa-btn w-full select-none active:!bg-pebble-accent active:!border-pebble-accent active:!text-pebble-on-accent"
+                title="Press and hold to see the untouched photo"
+                @pointerdown.prevent="compare(true)" @pointerup="compare(false)" @pointerleave="compare(false)">
+          <AppIcon name="eye" :size="15" /> Hold to compare
+        </button>
       </template>
 
       <!-- Frame (shape mask + border) -->
       <template v-else-if="tab === 'border'">
-        <div>
-          <div class="text-xs text-pebble-text-dim mb-1">Shape mask</div>
+        <section class="space-y-1.5">
+          <div class="pa-section">Shape mask</div>
           <div class="grid grid-cols-5 gap-1">
-            <button @click="setMask(null)"
-                    :class="['rounded border py-1.5 text-[13px] leading-none', !img.maskId ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']"
+            <button type="button" @click="setMask(null)"
+                    :class="['pa-tile h-8 text-[13px] leading-none', !img.maskId ? 'is-active' : '']"
                     title="No mask">▭</button>
-            <button v-for="m in MASKS" :key="m.id" @click="setMask(m.id)"
-                    :class="['rounded border py-1.5 text-[13px] leading-none', img.maskId === m.id ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']"
+            <button v-for="m in MASKS" :key="m.id" type="button" @click="setMask(m.id)"
+                    :class="['pa-tile h-8 text-[13px] leading-none', img.maskId === m.id ? 'is-active' : '']"
                     :title="m.label">{{ m.glyph }}</button>
           </div>
-          <p v-if="img.maskId" class="text-2xs text-pebble-text-dim mt-1">Borders and decorative frames trace the mask shape.</p>
-        </div>
+          <p v-if="img.maskId" class="pa-hint">Borders and decorative frames trace the mask shape.</p>
+        </section>
 
-        <div class="border-t border-pebble-border pt-2">
-          <AppButton v-if="!img.border" size="sm" block @click="enableBorder">Add border</AppButton>
+        <section class="space-y-2.5">
+          <div class="pa-section">Border</div>
+          <AppButton v-if="!img.border" variant="secondary" icon="plus" block @click="enableBorder">Add border</AppButton>
           <template v-else>
             <!-- Line vs. decorative frame -->
-            <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
-              <button @click="useLineBorder" :class="['flex-1 py-1 rounded', !isPatternBorder ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">Line</button>
-              <button @click="useFrameBorder" :class="['flex-1 py-1 rounded', isPatternBorder ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">Decorative frame</button>
-            </div>
+            <AppSegmented :model-value="isPatternBorder ? 'frame' : 'line'" :options="BORDER_KINDS"
+                          @update:model-value="v => (v === 'frame' ? useFrameBorder() : useLineBorder())" />
 
             <!-- LINE border -->
             <template v-if="!isPatternBorder">
               <div>
-                <div class="text-xs text-pebble-text-dim mb-1">Style</div>
-                <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
-                  <button v-for="s in (['solid','dashed','dotted','double'] as const)" :key="s" @click="setLineStyle(s)"
-                          :class="['flex-1 py-1 rounded capitalize', img.border.style === s ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">{{ s }}</button>
-                </div>
+                <div class="pa-label mb-1">Style</div>
+                <AppSegmented :model-value="img.border.style" :options="LINE_STYLES" @update:model-value="v => setLineStyle(v as 'solid')" />
               </div>
               <AppSlider label="Width" :min="0" :max="40" v-model="img.border.width" unit="px" @update:model-value="touch" />
-              <AppSlider label="Corner radius" :min="0" :max="120" v-model="img.border.radius" unit="px" @update:model-value="touch" />
-              <label class="flex items-center justify-between text-xs py-0.5">
+              <AppSlider label="Corner radius" :min="0" :max="120" :reset-to="0" v-model="img.border.radius" unit="px" @update:model-value="touch" />
+              <label class="flex items-center justify-between text-xs h-7 cursor-pointer">
                 <span>Gradient colour</span>
                 <input type="checkbox" :checked="!!img.border.gradient" @change="toggleGradient" />
               </label>
@@ -400,47 +427,69 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
                 <AppColorPicker label="To" v-model="img.border.gradient.to" @update:model-value="touchNow" />
                 <AppSlider label="Angle" :min="0" :max="360" v-model="img.border.gradient.angle" unit="°" @update:model-value="touch" />
               </template>
-              <AppColorPicker v-else label="Color" v-model="img.border.color" @update:model-value="touchNow" />
+              <AppColorPicker v-else label="Colour" v-model="img.border.color" @update:model-value="touchNow" />
             </template>
 
             <!-- DECORATIVE FRAME border -->
             <template v-else>
               <div>
-                <div class="text-xs text-pebble-text-dim mb-1">Frame style</div>
+                <div class="pa-label mb-1">Frame style</div>
                 <div class="grid grid-cols-3 gap-1.5">
-                  <button v-for="bf in BORDER_FRAMES" :key="bf.id" @click="pickFrame(bf.id)"
-                          :class="['rounded border px-1 py-2 text-2xs leading-tight', img.border.frameId === bf.id ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']">
+                  <button v-for="bf in BORDER_FRAMES" :key="bf.id" type="button" @click="pickFrame(bf.id)"
+                          :class="['pa-tile px-1 py-2 text-2xs leading-tight', img.border.frameId === bf.id ? 'is-active' : '']">
                     {{ bf.label }}
                   </button>
                 </div>
               </div>
               <AppSlider label="Thickness" :min="6" :max="120" v-model="img.border.width" unit="px" @update:model-value="touch" />
-              <AppColorPicker label="Color" v-model="img.border.color" @update:model-value="touchNow" />
+              <AppColorPicker label="Colour" v-model="img.border.color" @update:model-value="touchNow" />
             </template>
 
-            <AppButton size="sm" variant="ghost" block @click="img.border = null; touchNow()">Remove border</AppButton>
+            <AppButton size="sm" variant="ghost" icon="trash" block @click="img.border = null; touchNow()">Remove border</AppButton>
           </template>
-        </div>
+        </section>
       </template>
 
       <!-- Shadow -->
       <template v-else-if="tab === 'shadow'">
-        <AppButton v-if="!img.shadow" size="sm" block @click="enableShadow">Add shadow</AppButton>
-        <template v-else>
-          <AppSlider label="Offset X" :min="-50" :max="50" v-model="img.shadow.offsetX" @update:model-value="touch" />
-          <AppSlider label="Offset Y" :min="-50" :max="50" v-model="img.shadow.offsetY" @update:model-value="touch" />
-          <AppSlider label="Blur" :min="0" :max="80" v-model="img.shadow.blur" @update:model-value="touch" />
-          <AppColorPicker label="Color" v-model="img.shadow.color" @update:model-value="touchNow" />
-          <AppButton size="sm" variant="ghost" block @click="img.shadow = null; touchNow()">Remove shadow</AppButton>
-        </template>
+        <section class="space-y-2.5">
+          <div class="pa-section">Drop shadow</div>
+          <template v-if="!img.shadow">
+            <p class="pa-hint">Lift the photo off the page with a soft shadow.</p>
+            <AppButton variant="secondary" icon="plus" block @click="enableShadow">Add shadow</AppButton>
+          </template>
+          <template v-else>
+            <AppSlider label="Offset X" :min="-50" :max="50" v-model="img.shadow.offsetX" unit="px" @update:model-value="touch" />
+            <AppSlider label="Offset Y" :min="-50" :max="50" v-model="img.shadow.offsetY" unit="px" @update:model-value="touch" />
+            <AppSlider label="Blur" :min="0" :max="80" v-model="img.shadow.blur" unit="px" @update:model-value="touch" />
+            <AppColorPicker label="Colour" v-model="img.shadow.color" @update:model-value="touchNow" />
+            <AppButton size="sm" variant="ghost" icon="trash" block @click="img.shadow = null; touchNow()">Remove shadow</AppButton>
+          </template>
+        </section>
       </template>
 
       <!-- Caption -->
       <template v-else>
-        <label class="text-xs block">Caption text
-          <input v-model="img.caption" class="pa-input w-full mt-1 py-1" placeholder="A lovely moment" @input="project.markDirty()" />
-        </label>
+        <section class="space-y-1.5">
+          <div class="pa-section">Caption</div>
+          <label class="block">
+            <span class="pa-label block mb-1">Caption text</span>
+            <input v-model="img.caption" class="pa-input w-full" placeholder="A lovely moment" @input="project.markDirty()" />
+          </label>
+        </section>
       </template>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Inline-labelled number field: the axis letter sits inside the input well. */
+.pa-field {
+  @apply flex items-center h-8 rounded-md border border-pebble-border bg-pebble-bg transition-colors
+         hover:border-pebble-border-strong focus-within:border-pebble-accent focus-within:ring-1 focus-within:ring-pebble-accent;
+}
+.pa-field > span { @apply w-7 shrink-0 text-center text-2xs font-medium text-pebble-text-dim; }
+.pa-field > input {
+  @apply flex-1 min-w-0 h-full bg-transparent pr-2 text-xs tabular-nums text-pebble-text outline-none;
+}
+</style>

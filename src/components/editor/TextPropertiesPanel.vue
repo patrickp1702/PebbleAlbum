@@ -14,6 +14,8 @@ import AppSlider from '@/components/ui/AppSlider.vue';
 import AppColorPicker from '@/components/ui/AppColorPicker.vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppDropdown from '@/components/ui/AppDropdown.vue';
+import AppIconButton from '@/components/ui/AppIconButton.vue';
+import AppSegmented from '@/components/ui/AppSegmented.vue';
 
 const project = useProjectStore();
 const editor = useEditorStore();
@@ -27,7 +29,7 @@ const fontOptions = (fontsData as { fonts: { family: string; label: string }[] }
 const alignOptions = [
   { value: 'left', label: 'Left' }, { value: 'center', label: 'Center' },
   { value: 'right', label: 'Right' }, { value: 'justify', label: 'Justify' },
-];
+] as const;
 
 // Text re-rendering needs a canvas rebuild; debounce continuous edits.
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -59,67 +61,74 @@ function remove() {
 
 <template>
   <div v-if="block" class="flex flex-col h-full">
-    <div class="px-3 py-2 border-b border-pebble-border flex items-center gap-2">
-      <button class="shrink-0 h-7 px-2 rounded bg-pebble-surface-2 border border-pebble-border text-xs hover:border-pebble-accent"
-              title="Back to page settings" @click="back">‹ Back</button>
+    <!-- What is selected -->
+    <header class="pl-1.5 pr-3 h-12 shrink-0 border-b border-pebble-border flex items-center gap-1.5">
+      <AppIconButton icon="chevron-left" label="Back to page" @click="back" />
       <div class="min-w-0">
-        <div class="text-xs text-pebble-text-dim capitalize">{{ block.type }} text</div>
-        <div class="text-sm truncate">{{ block.content || 'Empty text' }}</div>
+        <div class="pa-section">{{ block.type }} text</div>
+        <div class="text-sm font-medium truncate" :title="block.content">{{ block.content || 'Empty text' }}</div>
       </div>
-    </div>
+    </header>
 
-    <div class="flex-1 overflow-auto p-3 space-y-3 text-sm">
-      <label class="text-xs block">Text
-        <textarea v-model="block.content" rows="3" class="pa-input w-full mt-1" @input="touch" />
-      </label>
+    <div class="flex-1 min-h-0 overflow-auto p-3 space-y-4 text-sm">
+      <section class="space-y-1.5">
+        <div class="pa-section">Content</div>
+        <textarea v-model="block.content" rows="3" class="pa-input w-full block resize-y" aria-label="Text" @input="touch" />
+      </section>
 
-      <AppDropdown label="Font" :model-value="block.style.fontFamily" :options="fontOptions" @update:model-value="setFont" />
-
-      <AppSlider label="Size" :min="8" :max="200" v-model="block.style.fontSize" unit="px" @update:model-value="touch" />
-
-      <div class="flex gap-2">
-        <button class="flex-1 py-1 rounded border text-sm font-bold"
-                :class="block.style.fontWeight === 'bold' ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border'"
-                @click="toggleBold">B</button>
-        <button class="flex-1 py-1 rounded border text-sm italic"
-                :class="block.style.fontStyle === 'italic' ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border'"
-                @click="toggleItalic">I</button>
-      </div>
-
-      <div>
-        <div class="text-xs text-pebble-text-dim mb-1">Alignment</div>
-        <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
-          <button v-for="a in alignOptions" :key="a.value" @click="setAlign(a.value)"
-                  :class="['flex-1 py-1 rounded', block.style.align === a.value ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">{{ a.label }}</button>
+      <section class="space-y-2.5">
+        <div class="pa-section">Typography</div>
+        <AppDropdown label="Font" :model-value="block.style.fontFamily" :options="fontOptions" @update:model-value="setFont" />
+        <AppSlider label="Size" :min="8" :max="200" v-model="block.style.fontSize" unit="px" @update:model-value="touch" />
+        <div class="flex gap-2">
+          <button type="button" class="pa-btn flex-1 !text-sm font-bold" title="Bold" :aria-pressed="block.style.fontWeight === 'bold'"
+                  :class="block.style.fontWeight === 'bold' ? '!bg-pebble-accent !border-pebble-accent !text-pebble-on-accent' : ''"
+                  @click="toggleBold">B</button>
+          <button type="button" class="pa-btn flex-1 !text-sm italic font-serif" title="Italic" :aria-pressed="block.style.fontStyle === 'italic'"
+                  :class="block.style.fontStyle === 'italic' ? '!bg-pebble-accent !border-pebble-accent !text-pebble-on-accent' : ''"
+                  @click="toggleItalic">I</button>
         </div>
-      </div>
+        <div>
+          <div class="pa-label mb-1">Alignment</div>
+          <AppSegmented :model-value="block.style.align" :options="alignOptions" @update:model-value="setAlign" />
+        </div>
+        <AppColorPicker label="Colour" v-model="block.style.color" @update:model-value="touch" />
+      </section>
 
-      <AppColorPicker label="Colour" v-model="block.style.color" @update:model-value="touch" />
-      <AppSlider label="Bend" :min="-100" :max="100" :model-value="Math.round(block.style.curve ?? 0)"
-                 @update:model-value="v => { block!.style.curve = v; touch(); }" />
-      <p v-if="block.style.curve" class="text-2xs text-pebble-text-dim -mt-1">Positive arcs up (smile), negative arcs down; ±100 ≈ a full circle.</p>
-      <AppSlider label="Letter spacing" :min="-5" :max="40" v-model="block.style.letterSpacing" @update:model-value="touch" />
-      <AppSlider label="Line height" :min="80" :max="240" :model-value="Math.round(block.style.lineHeight*100)" unit="%" @update:model-value="v => { block!.style.lineHeight = v/100; touch(); }" />
-      <AppSlider label="Rotation" :min="-180" :max="180" v-model="block.position.rotation" unit="°" @update:model-value="touch" />
-      <AppSlider label="Opacity" :min="0" :max="100" :model-value="Math.round(block.style.opacity*100)" unit="%" @update:model-value="v => { block!.style.opacity = v/100; touch(); }" />
+      <section class="space-y-2">
+        <div class="pa-section">Spacing &amp; shape</div>
+        <AppSlider label="Letter spacing" :min="-5" :max="40" v-model="block.style.letterSpacing" @update:model-value="touch" />
+        <AppSlider label="Line height" :min="80" :max="240" :model-value="Math.round(block.style.lineHeight*100)" unit="%" @update:model-value="v => { block!.style.lineHeight = v/100; touch(); }" />
+        <AppSlider label="Bend" :min="-100" :max="100" :model-value="Math.round(block.style.curve ?? 0)"
+                   @update:model-value="v => { block!.style.curve = v; touch(); }" />
+        <p v-if="block.style.curve" class="pa-hint">Positive arcs up (smile), negative arcs down; ±100 ≈ a full circle.</p>
+      </section>
+
+      <section class="space-y-2">
+        <div class="pa-section">Rotation &amp; opacity</div>
+        <AppSlider label="Rotation" :min="-180" :max="180" v-model="block.position.rotation" unit="°" @update:model-value="touch" />
+        <AppSlider label="Opacity" :min="0" :max="100" :reset-to="100" :model-value="Math.round(block.style.opacity*100)" unit="%" @update:model-value="v => { block!.style.opacity = v/100; touch(); }" />
+      </section>
 
       <!-- Legibility kit (for text over busy photos) -->
-      <div class="pt-2 border-t border-pebble-border space-y-2">
-        <div class="text-2xs uppercase tracking-wider text-pebble-text-dim">Legibility</div>
-        <label class="flex items-center justify-between text-xs"><span>Background plate</span>
+      <section class="space-y-1.5">
+        <div class="pa-section">Legibility</div>
+        <label class="flex items-center justify-between text-xs h-7 cursor-pointer"><span>Background plate</span>
           <input type="checkbox" :checked="!!block.style.background" @change="togglePlate(($event.target as HTMLInputElement).checked)" /></label>
         <AppColorPicker v-if="block.style.background" label="Plate colour" :model-value="block.style.background" @update:model-value="setPlate" />
-        <label class="flex items-center justify-between text-xs"><span>Outline</span>
+        <label class="flex items-center justify-between text-xs h-7 cursor-pointer"><span>Outline</span>
           <input type="checkbox" :checked="!!block.style.textStroke" @change="toggleOutline(($event.target as HTMLInputElement).checked)" /></label>
         <template v-if="block.style.textStroke">
           <AppSlider label="Outline width" :min="0" :max="12" :model-value="block.style.textStroke.width" unit="px" @update:model-value="v => setOutline('width', v)" />
           <AppColorPicker label="Outline colour" :model-value="block.style.textStroke.color" @update:model-value="v => setOutline('color', v)" />
         </template>
-        <label class="flex items-center justify-between text-xs"><span>Drop shadow</span>
+        <label class="flex items-center justify-between text-xs h-7 cursor-pointer"><span>Drop shadow</span>
           <input type="checkbox" :checked="!!block.style.textShadow" @change="toggleTextShadow(($event.target as HTMLInputElement).checked)" /></label>
-      </div>
+      </section>
 
-      <AppButton size="sm" variant="ghost" block @click="remove">Delete text</AppButton>
+      <div class="pt-3 border-t border-pebble-border">
+        <AppButton size="sm" variant="ghost" icon="trash" block class="!text-pebble-danger" @click="remove">Delete text</AppButton>
+      </div>
     </div>
   </div>
 </template>

@@ -126,8 +126,8 @@ body {
 
 /* ---- Native form controls, restyled once for the whole app ---------------- */
 
-/* Range: 4px track with an accent fill up to the thumb (--pa-fill is set by
-   AppSlider; a bare <input type=range> simply shows an unfilled track). */
+/* Range: 4px track with an accent fill between --pa-fill-from and --pa-fill
+   (a solid two-stop fill, not a decorative gradient; both are set by AppSlider; a bare <input type=range> simply shows an unfilled track). */
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
@@ -140,7 +140,8 @@ input[type='range']::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
   background: linear-gradient(to right,
-    rgb(var(--ui-accent)) 0 var(--pa-fill, 0%),
+    rgb(var(--ui-pressed)) 0 var(--pa-fill-from, 0%),
+    rgb(var(--ui-accent)) var(--pa-fill-from, 0%) var(--pa-fill, 0%),
     rgb(var(--ui-pressed)) var(--pa-fill, 0%) 100%);
 }
 input[type='range']::-webkit-slider-thumb {
