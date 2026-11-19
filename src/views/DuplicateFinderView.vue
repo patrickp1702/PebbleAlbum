@@ -11,7 +11,7 @@
  *    with an inline error/Retry panel.
  *  • Match-strictness slider — re-clusters INSTANTLY in the renderer through the pure
  *    `buildDuplicateGroups` (no re-analysis); higher = only near-identical frames.
- *  • Per-set ⛶ full-screen compare overlay (Teleport; Esc to close).
+ *  • Per-set full-screen compare overlay (Teleport; Esc to close).
  *  • Collapsible sets (per-group + Collapse/Expand all).
  *  • A "Possibly blurry" bucket: ungrouped photos far below the folder's median
  *    sharpness, markable for moving.
@@ -25,6 +25,10 @@ import { buildDuplicateGroups, type SimItem } from '@/engine/similarity';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import AppSlider from '@/components/ui/AppSlider.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
+import AppIconButton from '@/components/ui/AppIconButton.vue';
+import AppSegmented from '@/components/ui/AppSegmented.vue';
+import AppEmptyState from '@/components/ui/AppEmptyState.vue';
 
 const router = useRouter();
 const app = useAppStore();
@@ -47,6 +51,10 @@ const marked = reactive<Record<string, boolean>>({});   // relativePaths to MOVE
 const thumbs = reactive<Record<string, string>>({});
 const bigThumbs = reactive<Record<string, string>>({});
 const view = ref<'grid' | 'large'>('grid');
+const VIEW_OPTIONS = [
+  { value: 'grid', label: 'Grid', icon: 'grid' },
+  { value: 'large', label: 'Compare', icon: 'compare', title: 'Large side-by-side to spot the best' },
+] as const;
 const confirmMove = ref(false);
 const collapsed = reactive<Record<string, boolean>>({}); // group id → collapsed?
 const fullscreenId = ref<string | null>(null);            // group shown full-screen
@@ -178,98 +186,104 @@ async function doMove() {
 
 <template>
   <div class="h-full w-full flex flex-col bg-pebble-bg">
-    <header class="h-14 shrink-0 flex items-center gap-3 px-5 border-b border-pebble-border">
-      <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-pebble-hover" @click="router.push('/')">‹ Home</button>
-      <div class="font-semibold">Duplicate Finder</div>
-      <span v-if="analyzing" class="text-2xs text-pebble-accent-soft truncate max-w-[280px]">{{ progressLabel }}</span>
+    <header class="pa-topbar">
+      <AppIconButton icon="home" label="Back to home" @click="router.push('/')" />
+      <div class="font-semibold whitespace-nowrap">Duplicate Finder</div>
+      <span v-if="analyzing" class="text-xs text-pebble-accent-soft truncate max-w-[280px]">{{ progressLabel }}</span>
+      <span v-else-if="folder" class="text-xs text-pebble-text-dim font-mono truncate min-w-0" :title="folder">{{ folder }}</span>
+      <span v-else class="text-xs text-pebble-text-dim truncate hidden md:inline">Group similar and burst photos, keep the best, move the rest aside.</span>
       <div class="flex-1"></div>
       <!-- view toggle -->
-      <div v-if="records.length" class="flex rounded-lg bg-pebble-surface-2 p-0.5 text-xs">
-        <button class="px-3 py-1 rounded-md" :class="view === 'grid' ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim'" @click="setView('grid')">▦ Grid</button>
-        <button class="px-3 py-1 rounded-md" :class="view === 'large' ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim'" @click="setView('large')" title="Large side-by-side to spot the best">⛶ Compare</button>
+      <div v-if="records.length" class="w-48 shrink-0">
+        <AppSegmented :model-value="view" :options="VIEW_OPTIONS" @update:model-value="setView" />
       </div>
-      <AppButton size="sm" :disabled="analyzing" @click="pickFolder">{{ folder ? 'Change folder…' : 'Pick folder…' }}</AppButton>
-      <AppButton size="sm" variant="secondary" :disabled="!markedList.length || moving" @click="confirmMove = true">
-        {{ moving ? 'Moving…' : `Move ${markedList.length} to /duplicate` }}
-      </AppButton>
+      <AppButton v-if="folder" size="sm" variant="secondary" icon="folder" :disabled="analyzing" @click="pickFolder">Change folder…</AppButton>
     </header>
 
     <!-- Live analysis progress -->
-    <div v-if="analyzing" class="shrink-0 px-5 py-2.5 border-b border-pebble-border">
-      <div class="flex justify-between text-2xs text-pebble-text-dim mb-1.5">
+    <div v-if="analyzing" class="shrink-0 px-4 py-2.5 bg-pebble-surface border-b border-pebble-border">
+      <div class="flex justify-between text-xs text-pebble-text-dim mb-1.5">
         <span>{{ progressLabel }}</span>
-        <span v-if="progress?.total">{{ progressPct }}%</span>
+        <span v-if="progress?.total" class="tabular-nums text-pebble-text">{{ progressPct }}%</span>
       </div>
-      <div class="h-1.5 rounded-full bg-pebble-surface-2 overflow-hidden">
-        <div class="h-full bg-pebble-accent transition-all duration-200"
+      <div class="h-1.5 rounded-full bg-pebble-pressed overflow-hidden">
+        <div class="h-full rounded-full bg-pebble-accent transition-[width] duration-200"
              :class="progress?.total ? '' : 'animate-pulse'"
              :style="{ width: (progress?.total ? progressPct : 20) + '%' }"></div>
       </div>
     </div>
 
-    <!-- Controls: similarity strictness + collapse-all + counts -->
-    <div v-if="records.length && !analyzing" class="shrink-0 px-5 py-2.5 border-b border-pebble-border flex items-center gap-x-5 gap-y-2 flex-wrap">
-      <div class="flex items-center gap-2.5">
-        <span class="text-2xs text-pebble-text-dim whitespace-nowrap">Match strictness</span>
+    <!-- Controls: similarity strictness + collapse-all -->
+    <div v-if="records.length && !analyzing" class="shrink-0 px-4 h-11 bg-pebble-surface border-b border-pebble-border flex items-center gap-x-5">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span class="pa-label whitespace-nowrap">Match strictness</span>
         <span class="text-2xs text-pebble-text-dim">Loose</span>
-        <div class="w-40"><AppSlider v-model="strictness" :min="1" :max="10" :step="1" /></div>
+        <div class="w-40"><AppSlider v-model="strictness" :min="1" :max="10" :step="1" :reset-to="5" /></div>
         <span class="text-2xs text-pebble-text-dim">Strict</span>
-        <span class="text-2xs text-pebble-text-dim/70 italic">{{ strictness >= 8 ? 'near-identical only' : strictness <= 3 ? 'loosely similar' : 'similar' }}</span>
+        <span class="text-xs text-pebble-text whitespace-nowrap">{{ strictness >= 8 ? 'Near-identical only' : strictness <= 3 ? 'Loosely similar' : 'Similar' }}</span>
       </div>
-      <span class="text-2xs text-pebble-text-dim">
-        {{ groups.length }} set{{ groups.length === 1 ? '' : 's' }} · {{ blurry.length }} blurry · {{ otherPhotos.length }} unique
-      </span>
       <div class="flex-1"></div>
-      <button v-if="groups.length" class="text-2xs text-pebble-accent-soft hover:text-pebble-accent" @click="setAllCollapsed(!allCollapsed)">
+      <button v-if="groups.length" type="button" class="pa-btn !h-7 shrink-0" @click="setAllCollapsed(!allCollapsed)">
+        <AppIcon :name="allCollapsed ? 'chevron-down' : 'chevron-up'" :size="14" />
         {{ allCollapsed ? 'Expand all sets' : 'Collapse all sets' }}
       </button>
     </div>
 
-    <div class="flex-1 overflow-auto p-5 space-y-6">
-      <div v-if="error" class="rounded-lg border border-pebble-danger/40 bg-pebble-danger/10 text-pebble-danger px-4 py-3 text-sm flex items-center justify-between">
-        <span>{{ error }}</span>
-        <button class="underline hover:text-pebble-danger" @click="analyze">Retry</button>
+    <div class="flex-1 overflow-auto p-5 space-y-7">
+      <div v-if="error" class="rounded-lg border border-pebble-danger/40 bg-pebble-danger/10 px-4 py-3 text-sm flex items-center gap-3" role="alert">
+        <AppIcon name="alert" :size="17" class="text-pebble-danger" />
+        <span class="flex-1 min-w-0">{{ error }}</span>
+        <AppButton size="sm" variant="secondary" icon="rotate-cw" @click="analyze">Retry</AppButton>
       </div>
 
-      <div v-if="!folder" class="text-pebble-text-dim text-center mt-16">
-        <div class="text-5xl mb-3">🔍</div>
-        <p>Pick a folder to find duplicate & burst photos. Mark the ones you don't want, then move them to a <code>duplicate</code> subfolder.</p>
-      </div>
-      <div v-else-if="!analyzing && !groups.length && !ungrouped.length" class="text-pebble-text-dim">No photos found.</div>
+      <!-- First run: one instruction, one action -->
+      <AppEmptyState v-if="!folder" icon="images" title="Find duplicate and burst photos" class="mt-10"
+                     text="Choose a folder. Similar photos are grouped with the best one suggested; mark the ones you don't want and move them to a “duplicate” subfolder.">
+        <AppButton size="lg" icon="folder" :disabled="analyzing" @click="pickFolder">Choose folder…</AppButton>
+        <template #hint>Nothing is deleted — moved photos can be dragged back anytime.</template>
+      </AppEmptyState>
+      <div v-else-if="!analyzing && !groups.length && !ungrouped.length && !error" class="text-sm text-pebble-text-dim text-center mt-16">No photos found.</div>
 
       <!-- Duplicate groups -->
       <section v-if="groups.length">
-        <div class="text-2xs font-semibold uppercase tracking-wider text-pebble-text-dim mb-3">Duplicate / similar sets ({{ groups.length }})</div>
-        <div class="space-y-4">
-          <div v-for="g in groups" :key="g.id" class="rounded-xl border border-pebble-border bg-pebble-surface/60 p-4">
-            <div class="flex items-center justify-between mb-3 gap-3">
-              <button class="flex items-center gap-2 min-w-0 text-left" @click="toggleCollapse(g.id)" :title="collapsed[g.id] ? 'Expand set' : 'Collapse set'">
-                <span class="text-pebble-text-dim inline-block transition-transform" :class="collapsed[g.id] ? '-rotate-90' : ''">▾</span>
-                <span class="text-xs text-pebble-text-dim truncate">
-                  {{ g.members.length }} similar · ★ Best is kept<span v-if="markedInGroup(g)" class="text-pebble-danger"> · {{ markedInGroup(g) }} to move</span>
-                </span>
+        <h2 class="pa-section mb-3">Duplicate / similar sets ({{ groups.length }})</h2>
+        <div class="space-y-3">
+          <div v-for="g in groups" :key="g.id" class="rounded-lg border border-pebble-border bg-pebble-surface">
+            <div class="flex items-center justify-between gap-3 pl-2 pr-3 h-11">
+              <button type="button" class="flex items-center gap-2 min-w-0 h-8 px-1.5 rounded-md text-left hover:bg-pebble-hover transition-colors"
+                      :aria-expanded="!collapsed[g.id]" :title="collapsed[g.id] ? 'Expand set' : 'Collapse set'" @click="toggleCollapse(g.id)">
+                <AppIcon name="chevron-down" :size="15" class="text-pebble-text-dim transition-transform" :class="collapsed[g.id] ? '-rotate-90' : ''" />
+                <span class="text-sm font-medium truncate">{{ g.members.length }} similar photos</span>
+                <span v-if="markedInGroup(g)" class="text-xs text-pebble-danger whitespace-nowrap">{{ markedInGroup(g) }} to move</span>
+                <span v-else class="text-xs text-pebble-text-dim whitespace-nowrap">all kept</span>
               </button>
-              <div class="flex items-center gap-3 text-2xs shrink-0">
-                <button class="text-pebble-accent-soft hover:text-pebble-accent" @click="markOthers(g)">Mark all but best</button>
-                <button class="text-pebble-text-dim hover:text-pebble-text" @click="clearGroup(g)">Clear</button>
-                <button class="text-pebble-text-dim hover:text-pebble-text" title="View this set full screen to compare" @click="openFullscreen(g)">⛶ Full screen</button>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" class="pa-btn !h-7" title="Keep the suggested best photo and mark the rest to move" @click="markOthers(g)">Mark all but best</button>
+                <button type="button" class="pa-btn !h-7" @click="clearGroup(g)">Clear</button>
+                <AppIconButton size="sm" icon="maximize" label="Compare this set full screen" @click="openFullscreen(g)" />
               </div>
             </div>
-            <button v-if="collapsed[g.id]" class="text-2xs text-pebble-accent-soft hover:text-pebble-accent" @click="toggleCollapse(g.id)">Show {{ g.members.length }} photos…</button>
-            <div v-else class="flex flex-wrap gap-3">
-              <button v-for="m in g.members" :key="m" @click="toggle(m)"
-                      class="relative rounded-xl overflow-hidden bg-pebble-surface-2 ring-2 transition text-left"
-                      :class="[view === 'large' ? '' : 'w-44', marked[m] ? 'ring-pebble-danger' : 'ring-transparent hover:ring-pebble-accent/50']">
+            <div v-if="collapsed[g.id]" class="px-4 pb-3">
+              <button type="button" class="text-xs text-pebble-accent-soft hover:underline" @click="toggleCollapse(g.id)">Show {{ g.members.length }} photos…</button>
+            </div>
+            <div v-else class="flex flex-wrap gap-3 px-4 pb-4">
+              <button v-for="m in g.members" :key="m" type="button" :aria-pressed="!!marked[m]" @click="toggle(m)"
+                      class="relative rounded-lg overflow-hidden bg-pebble-surface-2 ring-2 transition-shadow text-left"
+                      :class="[view === 'large' ? '' : 'w-44', marked[m] ? 'ring-pebble-danger' : 'ring-transparent hover:ring-pebble-border-strong']">
                 <img v-if="view === 'large' ? bigSrc(m) : smallSrc(m)" :src="view === 'large' ? bigSrc(m) : smallSrc(m)"
-                     class="object-contain bg-black/30" :class="view === 'large' ? 'max-h-[64vh] max-w-[44vw]' : 'w-44 h-32 object-cover'" />
+                     class="object-contain bg-black/30" :class="[view === 'large' ? 'max-h-[64vh] max-w-[44vw]' : 'w-44 h-32 object-cover', marked[m] ? 'opacity-60' : '']" />
                 <div v-else class="bg-pebble-surface-2 animate-pulse" :class="view === 'large' ? 'w-80 h-56' : 'w-44 h-32'" />
-                <span v-if="m === g.suggested" class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-pebble-accent/90 text-white text-2xs font-semibold">★ Best</span>
-                <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-2xs font-semibold transition"
-                      :class="marked[m] ? 'bg-pebble-danger text-white' : 'bg-black/50 text-white/80'">{{ marked[m] ? '✓ Move' : 'Keep' }}</span>
+                <span v-if="m === g.suggested" class="absolute top-2 left-2 inline-flex items-center gap-1 h-5 px-1.5 rounded bg-pebble-accent text-pebble-on-accent text-2xs font-semibold">
+                  <AppIcon name="star" :size="11" :stroke="2.25" /> Best
+                </span>
+                <span class="absolute top-2 right-2 inline-flex items-center gap-1 h-5 px-1.5 rounded text-2xs font-semibold"
+                      :class="marked[m] ? 'bg-pebble-danger-fill text-white' : 'bg-black/65 text-white'">
+                  <AppIcon v-if="marked[m]" name="check" :size="11" :stroke="2.5" />{{ marked[m] ? 'Move' : 'Keep' }}
+                </span>
                 <div class="px-2 py-1.5">
-                  <div class="truncate text-2xs text-pebble-text-dim" :title="m">{{ fileOf(m) }}</div>
+                  <div class="truncate text-xs text-pebble-text-dim" :title="m">{{ fileOf(m) }}</div>
                   <div v-if="flags(m, g).length" class="flex flex-wrap gap-1 mt-1">
-                    <span v-for="f in flags(m, g)" :key="f" class="px-1.5 rounded-full text-2xs bg-pebble-warning/20 text-pebble-warning capitalize">{{ f }}</span>
+                    <span v-for="f in flags(m, g)" :key="f" class="px-1.5 py-px rounded text-2xs bg-pebble-warning/15 text-pebble-warning capitalize">{{ f }}</span>
                   </div>
                 </div>
               </button>
@@ -280,33 +294,36 @@ async function doMove() {
 
       <!-- Possibly blurry (ungrouped, sharpness well below the folder median) -->
       <section v-if="blurry.length">
-        <div class="flex items-center gap-4 mb-3">
-          <button class="flex items-center gap-2" @click="toggleCollapse('__blurry')">
-            <span class="text-pebble-text-dim inline-block transition-transform" :class="collapsed['__blurry'] ? '-rotate-90' : ''">▾</span>
-            <span class="text-2xs font-semibold uppercase tracking-wider text-pebble-warning/80">Possibly blurry ({{ blurry.length }})</span>
+        <div class="flex items-center gap-1.5 mb-3">
+          <button type="button" class="flex items-center gap-2 h-8 px-1.5 -ml-1.5 rounded-md hover:bg-pebble-hover transition-colors"
+                  :aria-expanded="!collapsed['__blurry']" @click="toggleCollapse('__blurry')">
+            <AppIcon name="chevron-down" :size="15" class="text-pebble-text-dim transition-transform" :class="collapsed['__blurry'] ? '-rotate-90' : ''" />
+            <span class="pa-section !text-pebble-warning">Possibly blurry ({{ blurry.length }})</span>
           </button>
-          <button class="text-2xs text-pebble-accent-soft hover:text-pebble-accent" @click="blurry.forEach((r) => marked[r.relativePath] = true)">Mark all</button>
-          <button class="text-2xs text-pebble-text-dim hover:text-pebble-text" @click="blurry.forEach((r) => marked[r.relativePath] = false)">Clear</button>
+          <button type="button" class="pa-btn !h-7 ml-2" @click="blurry.forEach((r) => marked[r.relativePath] = true)">Mark all</button>
+          <button type="button" class="pa-btn !h-7" @click="blurry.forEach((r) => marked[r.relativePath] = false)">Clear</button>
         </div>
         <div v-if="!collapsed['__blurry']" class="flex flex-wrap gap-3">
-          <button v-for="r in blurry" :key="r.relativePath" @click="toggle(r.relativePath)"
-                  class="relative w-40 rounded-xl overflow-hidden bg-pebble-surface-2 ring-2 transition text-left"
-                  :class="marked[r.relativePath] ? 'ring-pebble-danger' : 'ring-transparent hover:ring-pebble-accent/50'">
-            <img v-if="smallSrc(r.relativePath)" :src="smallSrc(r.relativePath)" class="w-40 h-28 object-cover" />
+          <button v-for="r in blurry" :key="r.relativePath" type="button" :aria-pressed="!!marked[r.relativePath]" @click="toggle(r.relativePath)"
+                  class="relative w-40 rounded-lg overflow-hidden bg-pebble-surface-2 ring-2 transition-shadow text-left"
+                  :class="marked[r.relativePath] ? 'ring-pebble-danger' : 'ring-transparent hover:ring-pebble-border-strong'">
+            <img v-if="smallSrc(r.relativePath)" :src="smallSrc(r.relativePath)" class="w-40 h-28 object-cover" :class="marked[r.relativePath] ? 'opacity-60' : ''" />
             <div v-else class="w-40 h-28 animate-pulse" />
-            <span class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-pebble-warning/80 text-white text-2xs font-semibold">blurry</span>
-            <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-2xs font-semibold"
-                  :class="marked[r.relativePath] ? 'bg-pebble-danger text-white' : 'bg-black/50 text-white/80'">{{ marked[r.relativePath] ? '✓ Move' : 'Keep' }}</span>
-            <div class="px-2 py-1.5"><div class="truncate text-2xs text-pebble-text-dim" :title="r.relativePath">{{ fileOf(r.relativePath) }}</div></div>
+            <span class="absolute top-2 left-2 inline-flex items-center h-5 px-1.5 rounded bg-pebble-warning text-black text-2xs font-semibold">Blurry</span>
+            <span class="absolute top-2 right-2 inline-flex items-center gap-1 h-5 px-1.5 rounded text-2xs font-semibold"
+                  :class="marked[r.relativePath] ? 'bg-pebble-danger-fill text-white' : 'bg-black/65 text-white'">
+              <AppIcon v-if="marked[r.relativePath]" name="check" :size="11" :stroke="2.5" />{{ marked[r.relativePath] ? 'Move' : 'Keep' }}
+            </span>
+            <div class="px-2 py-1.5"><div class="truncate text-xs text-pebble-text-dim" :title="r.relativePath">{{ fileOf(r.relativePath) }}</div></div>
           </button>
         </div>
       </section>
 
       <!-- All other (unique, acceptably sharp) -->
       <section v-if="otherPhotos.length">
-        <div class="text-2xs font-semibold uppercase tracking-wider text-pebble-text-dim mb-3">All other photos ({{ otherPhotos.length }})</div>
-        <div class="grid gap-2.5 grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
-          <div v-for="r in otherPhotos" :key="r.relativePath" class="aspect-square rounded-lg overflow-hidden bg-pebble-surface-2">
+        <h2 class="pa-section mb-3">All other photos ({{ otherPhotos.length }})</h2>
+        <div class="grid gap-2 grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
+          <div v-for="r in otherPhotos" :key="r.relativePath" class="aspect-square rounded-md overflow-hidden bg-pebble-surface-2">
             <img v-if="smallSrc(r.relativePath)" :src="smallSrc(r.relativePath)" class="w-full h-full object-cover" />
             <div v-else class="w-full h-full animate-pulse" />
           </div>
@@ -314,39 +331,62 @@ async function doMove() {
       </section>
     </div>
 
+    <!-- Action bar: what was found, how many are marked, and the ONE action -->
+    <footer v-if="records.length" class="px-4 h-14 shrink-0 bg-pebble-surface border-t border-pebble-border flex items-center gap-4">
+      <span class="text-xs text-pebble-text-dim truncate">
+        {{ groups.length }} set{{ groups.length === 1 ? '' : 's' }} · {{ blurry.length }} blurry · {{ otherPhotos.length }} unique
+      </span>
+      <div class="flex-1"></div>
+      <span class="text-sm whitespace-nowrap" :class="markedList.length ? 'text-pebble-text' : 'text-pebble-text-dim'">
+        <b class="font-semibold tabular-nums">{{ markedList.length }}</b> marked to move
+      </span>
+      <AppButton :variant="markedList.length ? 'primary' : 'secondary'" icon="folder" :disabled="!markedList.length || moving"
+                 :title="markedList.length ? 'Move the marked photos into a “duplicate” subfolder (reversible)' : 'Click photos to mark the ones you do not want'"
+                 @click="confirmMove = true">
+        {{ moving ? 'Moving…' : `Move ${markedList.length} to duplicate folder` }}
+      </AppButton>
+    </footer>
+
     <AppModal :open="confirmMove" title="Move to duplicate folder?" width="440px" @update:open="(v) => { if (!v) confirmMove = false; }">
-      <p class="text-sm">Move <b>{{ markedList.length }}</b> photo{{ markedList.length === 1 ? '' : 's' }} into a <code>duplicate</code> subfolder of your chosen folder? Your originals aren't deleted — they're just moved there, so you can restore them anytime.</p>
+      <p class="text-sm">Move <b>{{ markedList.length }}</b> photo{{ markedList.length === 1 ? '' : 's' }} into a <code class="font-mono text-xs px-1 py-0.5 rounded bg-pebble-surface-2">duplicate</code> subfolder of your chosen folder?</p>
+      <p class="text-sm text-pebble-text-dim mt-2">Your originals aren't deleted — they're just moved there, so you can restore them anytime.</p>
       <template #footer>
         <AppButton variant="ghost" @click="confirmMove = false">Cancel</AppButton>
-        <AppButton @click="doMove">Move</AppButton>
+        <AppButton icon="folder" @click="doMove">Move {{ markedList.length }}</AppButton>
       </template>
     </AppModal>
 
     <!-- Per-set full-screen compare -->
     <Teleport to="body">
-      <div v-if="fullscreenGroup" class="fixed inset-0 z-[200] bg-black/95 flex flex-col">
-        <div class="h-14 shrink-0 flex items-center gap-3 px-5 border-b border-white/10 text-white">
-          <div class="font-semibold">Compare set — {{ fullscreenGroup.members.length }} similar</div>
-          <span class="text-2xs text-white/50 hidden sm:inline">Click a photo to mark it for moving · Esc to close</span>
+      <div v-if="fullscreenGroup" class="fixed inset-0 z-[200] bg-pebble-bg flex flex-col">
+        <div class="pa-topbar">
+          <div class="font-semibold whitespace-nowrap">Compare set — {{ fullscreenGroup.members.length }} similar</div>
+          <span class="text-xs text-pebble-text-dim hidden sm:inline truncate">Click a photo to mark it for moving</span>
           <div class="flex-1"></div>
-          <button class="text-2xs text-pebble-accent-soft hover:text-white" @click="markOthers(fullscreenGroup)">Mark all but best</button>
-          <button class="text-2xs text-white/60 hover:text-white" @click="clearGroup(fullscreenGroup)">Clear</button>
-          <button class="h-8 px-3 rounded-lg text-sm text-white/80 hover:text-white hover:bg-pebble-hover" @click="closeFullscreen">✕ Close</button>
+          <span v-if="markedInGroup(fullscreenGroup)" class="text-xs text-pebble-danger whitespace-nowrap">{{ markedInGroup(fullscreenGroup) }} to move</span>
+          <button type="button" class="pa-btn !h-7" @click="markOthers(fullscreenGroup)">Mark all but best</button>
+          <button type="button" class="pa-btn !h-7" @click="clearGroup(fullscreenGroup)">Clear</button>
+          <AppIconButton icon="x" label="Close" shortcut="Esc" @click="closeFullscreen" />
         </div>
         <div class="flex-1 overflow-auto p-5">
           <div class="flex flex-wrap gap-4 justify-center items-start">
-            <button v-for="m in fullscreenGroup.members" :key="m" @click="toggle(m)"
-                    class="relative rounded-xl overflow-hidden bg-pebble-surface-2 ring-2 transition"
-                    :class="marked[m] ? 'ring-pebble-danger' : 'ring-transparent hover:ring-pebble-accent/60'">
-              <img v-if="bigSrc(m)" :src="bigSrc(m)" class="object-contain bg-black max-h-[78vh] max-w-[88vw]" />
+            <button v-for="m in fullscreenGroup.members" :key="m" type="button" :aria-pressed="!!marked[m]" @click="toggle(m)"
+                    class="relative rounded-lg overflow-hidden bg-pebble-surface-2 ring-2 transition-shadow text-left"
+                    :class="marked[m] ? 'ring-pebble-danger' : 'ring-transparent hover:ring-pebble-border-strong'">
+              <img v-if="bigSrc(m)" :src="bigSrc(m)" class="block object-contain bg-black max-h-[72vh] max-w-[88vw]" :class="marked[m] ? 'opacity-60' : ''" />
               <div v-else class="w-[40vw] h-[60vh] bg-pebble-surface-2 animate-pulse" />
-              <span v-if="m === fullscreenGroup.suggested" class="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-pebble-accent/90 text-white text-xs font-semibold">★ Best</span>
-              <span class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-semibold"
-                    :class="marked[m] ? 'bg-pebble-danger text-white' : 'bg-black/60 text-white/85'">{{ marked[m] ? '✓ Move' : 'Keep' }}</span>
-              <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
-                <div class="truncate text-2xs text-white/85" :title="m">{{ fileOf(m) }}</div>
+              <span v-if="m === fullscreenGroup.suggested" class="absolute top-3 left-3 inline-flex items-center gap-1 h-6 px-2 rounded bg-pebble-accent text-pebble-on-accent text-xs font-semibold">
+                <AppIcon name="star" :size="12" :stroke="2.25" /> Best
+              </span>
+              <span class="absolute top-3 right-3 inline-flex items-center gap-1 h-6 px-2 rounded text-xs font-semibold"
+                    :class="marked[m] ? 'bg-pebble-danger-fill text-white' : 'bg-black/65 text-white'">
+                <AppIcon v-if="marked[m]" name="check" :size="12" :stroke="2.5" />{{ marked[m] ? 'Move' : 'Keep' }}
+              </span>
+              <!-- Caption on a solid strip (legible over any photo) -->
+              <div class="px-3 py-2 bg-pebble-surface-2">
+                <div class="truncate text-xs text-pebble-text" :title="m">{{ fileOf(m) }}</div>
                 <div v-if="flags(m, fullscreenGroup).length" class="flex flex-wrap gap-1 mt-1">
-                  <span v-for="f in flags(m, fullscreenGroup)" :key="f" class="px-1.5 rounded-full text-2xs bg-pebble-warning/30 text-pebble-warning capitalize">{{ f }}</span>
+                  <span v-for="f in flags(m, fullscreenGroup)" :key="f" class="px-1.5 py-px rounded text-2xs bg-pebble-warning/15 text-pebble-warning capitalize">{{ f }}</span>
                 </div>
               </div>
             </button>

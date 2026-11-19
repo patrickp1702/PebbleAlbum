@@ -24,13 +24,13 @@ const rows = computed(() => [
 
 <template>
   <div class="max-w-2xl mx-auto">
-    <h2 class="text-2xl font-bold mb-6">Review &amp; generate</h2>
-    <div class="pa-panel divide-y divide-pebble-border">
-      <div v-for="[k, v] in rows" :key="k" class="flex justify-between px-5 py-3 text-sm">
-        <span class="text-pebble-text-dim">{{ k }}</span>
-        <span class="font-medium text-right truncate max-w-sm">{{ v }}</span>
+    <h2 class="text-xl font-semibold">Review &amp; generate</h2>
+    <p class="text-sm text-pebble-text-dim mt-1 mb-6">Check the summary, then choose <b class="text-pebble-text font-medium">Generate album</b>. You can refine everything afterwards in the editor.</p>
+    <dl class="pa-panel divide-y divide-pebble-border">
+      <div v-for="[k, v] in rows" :key="k" class="flex items-baseline gap-6 px-4 py-2.5 text-sm">
+        <dt class="w-36 shrink-0 text-pebble-text-dim">{{ k }}</dt>
+        <dd class="flex-1 min-w-0 font-medium truncate" :title="String(v)">{{ v }}</dd>
       </div>
-    </div>
-    <p class="text-xs text-pebble-text-dim mt-4">Click <b>Generate Album</b> to build pages. You can refine everything afterwards in the editor.</p>
+    </dl>
   </div>
 </template>

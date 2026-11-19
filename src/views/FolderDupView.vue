@@ -17,6 +17,10 @@ import { useAppStore } from '@/stores/appStore';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppSlider from '@/components/ui/AppSlider.vue';
 import VirtualList from '@/components/ui/VirtualList.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
+import AppIconButton from '@/components/ui/AppIconButton.vue';
+import AppSegmented from '@/components/ui/AppSegmented.vue';
+import AppTabs from '@/components/ui/AppTabs.vue';
 import type { DupReport, DupFolderInfo, DupMatchBy, DupProgress } from '@shared/ipc.types';
 
 const router = useRouter();
@@ -42,6 +46,13 @@ const MATCH_OPTS: { v: DupMatchBy; label: string }[] = [
   { v: 'name_size', label: 'Name + size' },
   { v: 'name_date_size', label: 'Name + date + size' },
 ];
+// Presentation-only option lists for the segmented controls / tab bar.
+const MATCH_SEG = MATCH_OPTS.map((o) => ({ value: o.v, label: o.label }));
+const SCOPE_SEG = [
+  { value: 'all', label: 'All' },
+  { value: 'within', label: 'Within', title: 'Duplicates inside one selected folder' },
+  { value: 'across', label: 'Across', title: 'Duplicates between different selected folders' },
+] as const;
 
 // ── Folder table helpers (id → info, ancestor walks for suppression) ─────────
 const folderMap = computed(() => {
@@ -136,6 +147,11 @@ const shownFiles = computed<FileRow[]>(() => {
   return rows;
 });
 
+const RESULT_TABS = computed(() => [
+  { id: 'folders' as const, label: `Duplicate folders (${shownPairs.value.length})`, icon: 'folders' as const },
+  { id: 'files' as const, label: `Duplicate files (${shownFiles.value.length})`, icon: 'page' as const },
+]);
+
 const stats = computed(() => report.value?.stats);
 const reusePct = computed(() => {
   const s = report.value?.stats; if (!s || !s.dirs) return 0;
@@ -208,116 +224,120 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 <template>
   <div class="h-full w-full flex flex-col bg-pebble-bg text-pebble-text">
     <!-- Header -->
-    <header class="flex items-center gap-3 px-4 h-13 py-2 border-b border-pebble-border">
-      <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-pebble-hover" @click="router.push('/')">‹ Home</button>
-      <div class="font-semibold">🗂️ Duplicate Folder Finder</div>
-      <div class="text-xs text-pebble-text-dim">Find folders &amp; files duplicated within or across your selected drives — by name{{ matchBy.includes('date') ? ' + date' : '' }}.</div>
+    <header class="pa-topbar">
+      <AppIconButton icon="home" label="Back to home" shortcut="Esc" @click="router.push('/')" />
+      <div class="font-semibold whitespace-nowrap">Duplicate Folder Finder</div>
+      <div class="text-xs text-pebble-text-dim truncate min-w-0 hidden md:block">Find folders &amp; files duplicated within or across your selected drives — by name{{ matchBy.includes('date') ? ' + date' : '' }}.</div>
       <div class="flex-1" />
-      <AppButton v-if="report" size="sm" variant="secondary" :disabled="busy" @click="sync">⟳ Sync</AppButton>
+      <AppButton v-if="report" size="sm" variant="secondary" icon="rotate-cw" :disabled="busy" title="Re-scan, reusing everything that has not changed" @click="sync">Sync</AppButton>
     </header>
 
     <!-- Setup (no report yet) -->
-    <div v-if="!report && !busy" class="flex-1 overflow-auto p-6">
-      <div class="max-w-2xl mx-auto space-y-4">
-        <div class="pa-panel p-5 space-y-3">
-          <div class="text-sm font-medium">Folders to compare</div>
-          <p class="text-xs text-pebble-text-dim">Add one folder to find duplicates inside it, or several (even from different disks) to also find duplicates across them.</p>
-          <div v-for="(r, i) in roots" :key="r" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-pebble-surface border border-pebble-border">
-            <span class="h-3 w-3 rounded-full shrink-0" :style="{ background: ROOT_HUES[i % ROOT_HUES.length] }" />
-            <span class="text-sm truncate flex-1">{{ r }}</span>
-            <button class="text-pebble-text-dim hover:text-pebble-danger text-sm" @click="removeRoot(i)">✕</button>
-          </div>
-          <AppButton size="sm" variant="secondary" block @click="addRoot">＋ Add folder…</AppButton>
+    <div v-if="!report && !busy" class="flex-1 overflow-auto px-6 py-8">
+      <div class="max-w-2xl mx-auto space-y-7">
+        <div>
+          <h1 class="text-xl font-semibold">Find duplicate folders</h1>
+          <p class="text-sm text-pebble-text-dim mt-1">Nothing is changed or deleted — you get a list, and each result opens in your file manager.</p>
         </div>
 
-        <div class="pa-panel p-5 space-y-3">
-          <div class="text-sm font-medium">Match files by</div>
-          <div class="flex flex-wrap gap-1.5">
-            <button v-for="o in MATCH_OPTS" :key="o.v" @click="matchBy = o.v"
-                    :class="['px-3 py-1.5 rounded-lg text-xs border', matchBy === o.v ? 'border-pebble-accent bg-pebble-accent/10 text-pebble-text' : 'border-pebble-border text-pebble-text-dim hover:border-pebble-accent/50']">
-              {{ o.label }}
-            </button>
+        <section class="space-y-3">
+          <h2 class="pa-section">1 · Folders to compare</h2>
+          <p class="text-xs text-pebble-text-dim">Add one folder to find duplicates inside it, or several (even from different disks) to also find duplicates across them.</p>
+          <div v-if="roots.length" class="pa-panel divide-y divide-pebble-border">
+            <div v-for="(r, i) in roots" :key="r" class="flex items-center gap-2.5 pl-3 pr-1.5 h-10">
+              <span class="h-2.5 w-2.5 rounded-full shrink-0" :style="{ background: ROOT_HUES[i % ROOT_HUES.length] }" />
+              <span class="text-sm font-mono truncate flex-1" :title="r">{{ r }}</span>
+              <AppIconButton size="sm" icon="x" label="Remove this folder" @click="removeRoot(i)" />
+            </div>
           </div>
-          <label class="flex items-center gap-2 text-xs pt-1">
+          <AppButton :variant="roots.length ? 'secondary' : 'primary'" icon="plus" @click="addRoot">Add folder…</AppButton>
+        </section>
+
+        <section class="space-y-3">
+          <h2 class="pa-section">2 · Match files by</h2>
+          <AppSegmented v-model="matchBy" :options="MATCH_SEG" />
+          <label class="flex items-center gap-2 text-sm cursor-pointer pt-1">
             <input type="checkbox" v-model="skipSystemDirs" />
             <span>Skip system &amp; dev folders (.git, node_modules, .Trash, …) and junk files</span>
           </label>
-        </div>
+        </section>
 
-        <AppButton block :disabled="!roots.length" @click="analyze">🔍 Find duplicates</AppButton>
+        <div class="pt-1 border-t border-pebble-border">
+          <AppButton size="lg" icon="search" class="mt-5" :variant="roots.length ? 'primary' : 'secondary'" :disabled="!roots.length"
+                     :title="roots.length ? undefined : 'Add at least one folder first'" @click="analyze">Find duplicates</AppButton>
+        </div>
       </div>
     </div>
 
     <!-- Progress -->
-    <div v-if="busy" class="flex-1 flex flex-col items-center justify-center gap-3">
-      <div class="text-lg">{{ progress?.phase === 'analyze' ? '⚙️ Analysing…' : '📁 Scanning…' }}</div>
+    <div v-if="busy" class="flex-1 flex flex-col items-center justify-center gap-3 px-6" role="status">
+      <div class="h-12 w-12 rounded-xl bg-pebble-surface-2 border border-pebble-border grid place-items-center text-pebble-accent-soft animate-pulse">
+        <AppIcon :name="progress?.phase === 'analyze' ? 'sliders' : 'folders'" :size="22" />
+      </div>
+      <div class="text-lg font-semibold">{{ progress?.phase === 'analyze' ? 'Analysing…' : 'Scanning…' }}</div>
       <div class="text-sm text-pebble-text-dim tabular-nums">
         {{ (progress?.dirs ?? 0).toLocaleString() }} folders · {{ (progress?.files ?? 0).toLocaleString() }} files
         <span v-if="(progress?.reusedDirs ?? 0) > 0"> · {{ (progress?.reusedDirs ?? 0).toLocaleString() }} reused</span>
       </div>
-      <div class="text-2xs text-pebble-text-dim max-w-lg truncate">{{ progress?.currentPath }}</div>
+      <div class="text-xs font-mono text-pebble-text-dim max-w-lg truncate h-4">{{ progress?.currentPath }}</div>
     </div>
 
     <!-- Results -->
     <template v-if="report && !busy">
       <!-- Toolbar -->
-      <div class="px-4 py-2.5 border-b border-pebble-border flex items-center gap-4 flex-wrap">
-        <div class="flex items-center gap-2 min-w-[220px]">
-          <span class="text-xs text-pebble-text-dim whitespace-nowrap">Similarity ≥</span>
-          <AppSlider class="flex-1" :min="30" :max="100" v-model="threshold" unit="%" />
-        </div>
-        <div class="flex rounded-lg bg-pebble-surface border border-pebble-border p-0.5 text-2xs">
-          <button v-for="s in (['all','within','across'] as const)" :key="s" @click="scopeFilter = s"
-                  :class="['px-2.5 py-1 rounded-md capitalize', scopeFilter === s ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">{{ s }}</button>
-        </div>
-        <input v-model="search" placeholder="Search path / file…" class="pa-input text-xs py-1.5 w-48" />
-        <label class="text-xs text-pebble-text-dim flex items-center gap-1">min files
-          <input type="number" min="0" v-model.number="minFiles" class="pa-input w-16 py-1" /></label>
-        <select :value="matchBy" @change="changeMatchBy(($event.target as HTMLSelectElement).value as DupMatchBy)"
-                class="pa-input text-xs py-1.5" title="Re-match from the existing scan (no rescan)">
-          <option v-for="o in MATCH_OPTS" :key="o.v" :value="o.v">{{ o.label }}</option>
-        </select>
+      <div class="px-4 py-2 bg-pebble-surface border-b border-pebble-border flex items-center gap-x-4 gap-y-2 flex-wrap">
+        <div class="w-56"><AppSlider label="Minimum similarity" :min="30" :max="100" v-model="threshold" unit="%" :reset-to="70" /></div>
+        <div class="w-52"><AppSegmented v-model="scopeFilter" :options="SCOPE_SEG" /></div>
+        <span class="relative">
+          <AppIcon name="search" :size="14" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-pebble-text-dim pointer-events-none" />
+          <input v-model="search" placeholder="Search path / file…" aria-label="Search path or file" class="pa-input text-xs h-8 !py-0 pl-8 w-48" />
+        </span>
+        <label class="pa-label flex items-center gap-1.5 whitespace-nowrap">Min files
+          <input type="number" min="0" v-model.number="minFiles" class="pa-input w-16 h-8 !py-0 text-xs tabular-nums" /></label>
+        <span class="relative">
+          <select :value="matchBy" @change="changeMatchBy(($event.target as HTMLSelectElement).value as DupMatchBy)"
+                  class="pa-input text-xs h-8 !py-0 pr-8 appearance-none cursor-pointer" aria-label="Match files by" title="Re-match from the existing scan (no rescan)">
+            <option v-for="o in MATCH_OPTS" :key="o.v" :value="o.v">{{ o.label }}</option>
+          </select>
+          <AppIcon name="chevron-down" :size="14" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-pebble-text-dim pointer-events-none" />
+        </span>
         <div class="flex-1" />
-        <div class="text-2xs text-pebble-text-dim tabular-nums">
+        <div class="text-xs text-pebble-text-dim tabular-nums whitespace-nowrap">
           {{ stats?.dirs.toLocaleString() }} folders · {{ stats?.files.toLocaleString() }} files · scan {{ stats?.scanMs }}ms
           <span v-if="stats?.cacheHit"> · reused {{ reusePct }}%</span>
         </div>
       </div>
 
       <!-- Tabs -->
-      <div class="px-4 pt-2 flex gap-4 text-sm border-b border-pebble-border">
-        <button v-for="t in (['folders','files'] as const)" :key="t" @click="tab = t"
-                :class="['pb-2 capitalize', tab === t ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim']">
-          Duplicate {{ t }}
-          <span class="ml-1 text-2xs px-1.5 py-0.5 rounded-full bg-pebble-surface-2">{{ t === 'folders' ? shownPairs.length : shownFiles.length }}</span>
-        </button>
+      <div class="bg-pebble-surface px-2">
+        <AppTabs v-model="tab" :tabs="RESULT_TABS" />
       </div>
 
       <!-- Duplicate folders -->
       <div v-show="tab === 'folders'" class="flex-1 min-h-0">
         <VirtualList :items="shownPairs" :item-height="88" class="px-4 py-2">
           <template #default="{ item }">
-            <div class="mx-0 my-1 rounded-xl border border-pebble-border bg-pebble-surface p-3 flex items-center gap-3 h-[80px]">
-              <div class="shrink-0 w-14 text-center">
-                <div class="text-lg font-bold" :class="item.sim >= 0.99 ? 'text-pebble-success' : item.sim >= 0.85 ? 'text-pebble-accent' : 'text-pebble-warning'">{{ Math.round(item.sim * 100) }}%</div>
-                <div class="text-2xs text-pebble-text-dim">{{ item.recShared }} shared</div>
+            <div class="mx-0 my-1 rounded-lg border border-pebble-border bg-pebble-surface px-3 flex items-center gap-4 h-[80px]">
+              <div class="shrink-0 w-16 text-center">
+                <div class="text-xl font-semibold tabular-nums" :class="item.sim >= 0.99 ? 'text-pebble-success' : item.sim >= 0.85 ? 'text-pebble-text' : 'text-pebble-warning'">{{ Math.round(item.sim * 100) }}%</div>
+                <div class="text-2xs text-pebble-text-dim tabular-nums">{{ item.recShared }} shared</div>
               </div>
-              <span class="shrink-0 text-2xs px-2 py-0.5 rounded-full font-medium"
-                    :class="item.scope === 'across' ? 'bg-pebble-accent-soft/20 text-pebble-accent-soft' : 'bg-pebble-warning/20 text-pebble-warning'">
-                {{ item.scope === 'across' ? '↔ across drives' : '⊂ within drive' }}
+              <span class="shrink-0 w-[92px] text-center text-2xs px-1.5 py-0.5 rounded font-medium"
+                    :class="item.scope === 'across' ? 'bg-pebble-accent/15 text-pebble-accent-soft' : 'bg-pebble-warning/15 text-pebble-warning'">
+                {{ item.scope === 'across' ? 'Across drives' : 'Within drive' }}
               </span>
               <div class="min-w-0 flex-1 space-y-1">
-                <button class="block w-full text-left group" @click="openFolder(item.a.path)" :title="`Open ${item.a.path} in Finder`">
-                  <span class="text-2xs text-pebble-text-dim">duplicate ({{ item.a.recFiles }} files) →</span>
-                  <span class="text-sm truncate block group-hover:text-pebble-accent">
-                    <span class="inline-block h-2 w-2 rounded-full mr-1 align-middle" :style="{ background: ROOT_HUES[item.a.root % ROOT_HUES.length] }" />{{ item.a.path }}
-                  </span>
+                <button type="button" class="flex items-center gap-2 w-full text-left group rounded" @click="openFolder(item.a.path)" :title="`Open ${item.a.path} in your file manager`">
+                  <span class="shrink-0 w-32 text-2xs text-pebble-text-dim">Duplicate · {{ item.a.recFiles }} files</span>
+                  <span class="h-2 w-2 rounded-full shrink-0" :style="{ background: ROOT_HUES[item.a.root % ROOT_HUES.length] }" />
+                  <span class="text-sm font-mono truncate group-hover:text-pebble-accent-soft">{{ item.a.path }}</span>
+                  <AppIcon name="external" :size="13" class="text-pebble-text-dim opacity-0 group-hover:opacity-100" />
                 </button>
-                <button class="block w-full text-left group" @click="openFolder(item.b.path)" :title="`Open ${item.b.path} in Finder`">
-                  <span class="text-2xs text-pebble-text-dim">also in ({{ item.b.recFiles }} files) →</span>
-                  <span class="text-xs truncate block text-pebble-text-dim group-hover:text-pebble-accent">
-                    <span class="inline-block h-2 w-2 rounded-full mr-1 align-middle" :style="{ background: ROOT_HUES[item.b.root % ROOT_HUES.length] }" />{{ item.b.path }}
-                  </span>
+                <button type="button" class="flex items-center gap-2 w-full text-left group rounded" @click="openFolder(item.b.path)" :title="`Open ${item.b.path} in your file manager`">
+                  <span class="shrink-0 w-32 text-2xs text-pebble-text-dim">Also in · {{ item.b.recFiles }} files</span>
+                  <span class="h-2 w-2 rounded-full shrink-0" :style="{ background: ROOT_HUES[item.b.root % ROOT_HUES.length] }" />
+                  <span class="text-xs font-mono truncate text-pebble-text-dim group-hover:text-pebble-accent-soft">{{ item.b.path }}</span>
+                  <AppIcon name="external" :size="13" class="text-pebble-text-dim opacity-0 group-hover:opacity-100" />
                 </button>
               </div>
             </div>
@@ -330,16 +350,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <div v-show="tab === 'files'" class="flex-1 min-h-0">
         <VirtualList :items="shownFiles" :item-height="64" class="px-4 py-2">
           <template #default="{ item }">
-            <div class="mx-0 my-1 rounded-xl border border-pebble-border bg-pebble-surface px-3 py-2 flex items-center gap-3 h-[56px]">
-              <span class="shrink-0 text-2xs px-2 py-0.5 rounded-full font-medium"
-                    :class="item.scope === 'across' ? 'bg-pebble-accent-soft/20 text-pebble-accent-soft' : 'bg-pebble-warning/20 text-pebble-warning'">
-                {{ item.scope === 'across' ? '↔' : '⊂' }} {{ item.total }}×
+            <div class="mx-0 my-1 rounded-lg border border-pebble-border bg-pebble-surface px-3 flex items-center gap-4 h-[56px]">
+              <span class="shrink-0 w-[92px] text-center text-2xs px-1.5 py-0.5 rounded font-medium tabular-nums"
+                    :class="item.scope === 'across' ? 'bg-pebble-accent/15 text-pebble-accent-soft' : 'bg-pebble-warning/15 text-pebble-warning'">
+                {{ item.total }}× {{ item.scope === 'across' ? 'across' : 'within' }}
               </span>
               <div class="min-w-0 flex-1">
-                <div class="text-sm truncate">{{ item.name }} <span class="text-2xs text-pebble-text-dim">· {{ fmtSize(item.size) }}</span></div>
-                <div class="text-2xs text-pebble-text-dim truncate">
-                  <button v-for="(l, i) in item.locs.slice(0, 4)" :key="l.id" class="hover:text-pebble-accent" @click="revealFile(l.path, item.name)" :title="`Reveal ${item.name} in Finder`">
-                    <span class="inline-block h-1.5 w-1.5 rounded-full mr-0.5 align-middle" :style="{ background: ROOT_HUES[l.root % ROOT_HUES.length] }" />{{ l.path }}{{ i < Math.min(item.locs.length, 4) - 1 ? '  ·  ' : '' }}
+                <div class="text-sm truncate">{{ item.name }} <span class="text-xs text-pebble-text-dim">· {{ fmtSize(item.size) }}</span></div>
+                <div class="text-2xs font-mono text-pebble-text-dim truncate">
+                  <button v-for="(l, i) in item.locs.slice(0, 4)" :key="l.id" type="button" class="hover:text-pebble-accent-soft rounded" @click="revealFile(l.path, item.name)" :title="`Reveal ${item.name} in your file manager`">
+                    <span class="inline-block h-1.5 w-1.5 rounded-full mr-1 align-middle" :style="{ background: ROOT_HUES[l.root % ROOT_HUES.length] }" />{{ l.path }}{{ i < Math.min(item.locs.length, 4) - 1 ? '  ·  ' : '' }}
                   </button>
                   <span v-if="item.locs.length > 4"> +{{ item.locs.length - 4 }} more</span>
                 </div>

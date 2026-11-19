@@ -19,15 +19,20 @@ function add(p: string) { text.value = text.value ? `${text.value}\n${p}` : p; s
 
 <template>
   <div class="max-w-2xl mx-auto space-y-5">
-    <h2 class="text-2xl font-bold">Proverbs &amp; quotes</h2>
-    <p class="text-pebble-text-dim">One per line. These are sprinkled across your album.</p>
-
-    <textarea v-model="text" rows="8" class="pa-input w-full font-serif" placeholder="Family is not an important thing — it's everything." @input="sync" />
-
-    <div class="flex gap-3">
-      <AppButton variant="secondary" @click="libOpen = true">📚 Browse library (150+)</AppButton>
-      <span class="self-center text-xs text-pebble-text-dim">{{ draft.meta.proverbs.length }} added</span>
+    <div>
+      <h2 class="text-xl font-semibold">Proverbs &amp; quotes</h2>
+      <p class="text-sm text-pebble-text-dim mt-1">Optional. One per line — these are sprinkled across your album.</p>
     </div>
+
+    <label class="block">
+      <span class="flex items-baseline justify-between mb-1">
+        <span class="pa-label">Your proverbs</span>
+        <span class="text-xs text-pebble-text-dim tabular-nums">{{ draft.meta.proverbs.length }} added</span>
+      </span>
+      <textarea v-model="text" rows="8" class="pa-input w-full font-serif !text-base" placeholder="Family is not an important thing — it's everything." @input="sync" />
+    </label>
+
+    <AppButton variant="secondary" icon="book" @click="libOpen = true">Browse library (150+)</AppButton>
 
     <div class="grid grid-cols-2 gap-4">
       <AppDropdown label="Frequency" :model-value="draft.config.proverbFrequency"
@@ -37,12 +42,18 @@ function add(p: string) { text.value = text.value ? `${text.value}\n${p}` : p; s
 
     <AppModal v-model:open="libOpen" title="Proverb library" width="640px">
       <input v-model="query" class="pa-input w-full mb-3" placeholder="Search love, family, wedding…" />
-      <div class="space-y-1 max-h-80 overflow-auto">
-        <button v-for="r in results" :key="r.text" class="block w-full text-left px-3 py-2 rounded hover:bg-pebble-hover text-sm"
+      <p class="pa-hint mb-2">Click a proverb to add it to your list.</p>
+      <div class="space-y-0.5 max-h-80 overflow-auto">
+        <button v-for="r in results" :key="r.text" type="button"
+                class="flex items-start gap-2 w-full text-left px-2.5 py-2 rounded-md hover:bg-pebble-hover text-sm transition-colors"
                 @click="add(r.text)">
-          <span class="pa-chip mr-2">{{ r.category }}</span>{{ r.text }}
+          <span class="pa-chip shrink-0 mt-px">{{ r.category }}</span><span class="min-w-0">{{ r.text }}</span>
         </button>
+        <div v-if="!results.length" class="py-8 text-center text-sm text-pebble-text-dim">No proverbs match “{{ query }}”.</div>
       </div>
+      <template #footer>
+        <AppButton @click="libOpen = false">Done</AppButton>
+      </template>
     </AppModal>
   </div>
 </template>

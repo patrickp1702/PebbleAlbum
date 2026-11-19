@@ -4,6 +4,7 @@ import { inject, computed, ref, reactive, watch } from 'vue';
 import type { WizardDraft } from '@/views/ProjectSetupView.vue';
 import { useAppStore } from '@/stores/appStore';
 import AppButton from '@/components/ui/AppButton.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
 import PhotoSelectionView from '@/components/editor/PhotoSelectionView.vue';
 
 const draft = inject<WizardDraft>('wizard')!;
@@ -65,45 +66,55 @@ async function pick() {
 
 <template>
   <div class="max-w-3xl mx-auto">
-    <h2 class="text-2xl font-bold mb-1">Choose your images</h2>
-    <p class="text-pebble-text-dim mb-6">Pick a folder. Images stay where they are — PebbleAlbum never copies or uploads them.</p>
+    <h2 class="text-xl font-semibold">Choose your images</h2>
+    <p class="text-sm text-pebble-text-dim mt-1 mb-6">Pick a folder. Images stay where they are — PebbleAlbum never copies or uploads them.</p>
 
-    <div class="pa-panel p-5 mb-6 flex items-center justify-between">
-      <div>
-        <div class="text-sm text-pebble-text-dim">Source folder</div>
-        <div class="font-mono text-sm truncate max-w-md">{{ draft.folder || 'No folder selected' }}</div>
+    <!-- Source folder: the primary action of this step until a folder is chosen -->
+    <div class="pa-panel p-4 mb-5 flex items-center gap-4">
+      <div class="h-10 w-10 shrink-0 rounded-md bg-pebble-surface-2 border border-pebble-border grid place-items-center text-pebble-text-dim">
+        <AppIcon name="folder" :size="18" />
       </div>
-      <AppButton :disabled="loading" @click="pick">{{ loading ? 'Scanning…' : 'Select Folder…' }}</AppButton>
+      <div class="flex-1 min-w-0">
+        <div class="pa-label">Source folder</div>
+        <div class="font-mono text-sm truncate" :class="draft.folder ? '' : 'text-pebble-text-dim'" :title="draft.folder">{{ draft.folder || 'No folder selected' }}</div>
+      </div>
+      <AppButton :variant="draft.records.length ? 'secondary' : 'primary'" icon="folder" :disabled="loading" @click="pick">
+        {{ loading ? 'Scanning…' : draft.folder ? 'Change folder…' : 'Select folder…' }}
+      </AppButton>
     </div>
 
-    <div v-if="draft.records.length" class="grid grid-cols-3 gap-4 mb-4">
-      <div class="pa-panel p-4 text-center"><div class="text-2xl font-bold">{{ draft.records.length }}</div><div class="text-xs text-pebble-text-dim">images</div></div>
-      <div class="pa-panel p-4 text-center"><div class="text-2xl font-bold">{{ totalSize }} MB</div><div class="text-xs text-pebble-text-dim">total size</div></div>
-      <div class="pa-panel p-4 text-center"><div class="text-2xl font-bold">{{ keptCount }}</div><div class="text-xs text-pebble-text-dim">selected</div></div>
-    </div>
+    <!-- What was found -->
+    <dl v-if="draft.records.length" class="grid grid-cols-3 pa-panel divide-x divide-pebble-border mb-5">
+      <div class="px-4 py-3"><dt class="pa-label">Images found</dt><dd class="text-xl font-semibold tabular-nums mt-0.5">{{ draft.records.length }}</dd></div>
+      <div class="px-4 py-3"><dt class="pa-label">Total size</dt><dd class="text-xl font-semibold tabular-nums mt-0.5">{{ totalSize }} MB</dd></div>
+      <div class="px-4 py-3"><dt class="pa-label">Selected for the album</dt><dd class="text-xl font-semibold tabular-nums mt-0.5">{{ keptCount }}</dd></div>
+    </dl>
 
-    <div v-if="draft.records.length" class="pa-panel p-4 mb-6 flex items-center justify-between">
-      <div>
-        <div class="text-sm font-medium">Remove duplicates & weak shots</div>
-        <div class="text-xs text-pebble-text-dim">We'll group similar/burst photos and pre-pick the sharpest, best-exposed one. Only selected photos go into the album.</div>
+    <div v-if="draft.records.length" class="pa-panel p-4 mb-6 flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <div class="text-sm font-medium">Remove duplicates &amp; weak shots</div>
+        <div class="text-xs text-pebble-text-dim mt-0.5">We'll group similar/burst photos and pre-pick the sharpest, best-exposed one. Only selected photos go into the album.</div>
       </div>
-      <AppButton variant="secondary" @click="showSelect = true">Review &amp; select…</AppButton>
+      <AppButton variant="secondary" icon="images" class="shrink-0" @click="showSelect = true">Review &amp; select…</AppButton>
     </div>
 
     <div v-if="draft.records.length">
+      <h3 class="pa-section mb-2">Preview</h3>
       <div class="grid grid-cols-6 gap-2">
         <div v-for="r in preview" :key="r.absolutePath"
-             class="aspect-square rounded overflow-hidden bg-pebble-surface">
+             class="aspect-square rounded-md overflow-hidden bg-pebble-surface">
           <img v-if="thumbs[r.thumbnailPath]" :src="thumbs[r.thumbnailPath]" class="w-full h-full object-cover" :alt="r.filename" />
           <div v-else class="w-full h-full animate-pulse bg-pebble-surface-2" />
         </div>
       </div>
-      <div v-if="pageCount > 1" class="flex items-center justify-center gap-4 mt-3 text-sm">
-        <button class="px-3 py-1 rounded border border-pebble-border disabled:opacity-40 hover:border-pebble-accent"
-                :disabled="previewPage === 0" @click="previewPage -= 1">‹ Prev</button>
-        <span class="text-pebble-text-dim">Page {{ previewPage + 1 }} / {{ pageCount }} · {{ draft.records.length }} images</span>
-        <button class="px-3 py-1 rounded border border-pebble-border disabled:opacity-40 hover:border-pebble-accent"
-                :disabled="previewPage >= pageCount - 1" @click="previewPage += 1">Next ›</button>
+      <div v-if="pageCount > 1" class="flex items-center justify-center gap-3 mt-3 text-xs">
+        <button type="button" class="pa-btn" :disabled="previewPage === 0" @click="previewPage -= 1">
+          <AppIcon name="chevron-left" :size="14" /> Prev
+        </button>
+        <span class="text-pebble-text-dim tabular-nums">Page {{ previewPage + 1 }} / {{ pageCount }} · {{ draft.records.length }} images</span>
+        <button type="button" class="pa-btn" :disabled="previewPage >= pageCount - 1" @click="previewPage += 1">
+          Next <AppIcon name="chevron-right" :size="14" />
+        </button>
       </div>
     </div>
 
