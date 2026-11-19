@@ -116,6 +116,83 @@ drawn to match. Emoji that are *content* stay: emoji stickers, the shape-mask gl
 
 ## 5. Screens — what changed, why, and what moved
 
-See the tables below; "kept" means the existing pattern is the convention and only its styling changed.
+"Kept" means the existing pattern is the convention users expect; only its styling changed.
 
-<!-- SCREENS -->
+### Album editor (`AlbumEditorView`, `PageStrip`, `PagePanel`, tray)
+Layout **kept** (pages left · page centre · selection/page panel right · album tray bottom) — it is convention 1 and 11.
+
+| Change | Why |
+|---|---|
+| Top bar reads left→right: Home · album name + save state · Undo/Redo · Zoom (− % + Fit) · utilities (Statistics, Shortcuts as icon buttons; Select images, Connect AI as quiet buttons) · Preview · Save · **Export** (the only accent button) | One primary per screen; utilities stop competing with it |
+| New **insert bar** above the page: Photo · Text · Sticker, and the page stepper ("Page n of m" with previous/next) | "Add" is where users of these apps look — next to the canvas, always visible, not inside a panel tab |
+| Right panel tabs are icon + label (Layers, Layout, Design, Text, Page); layers are a quiet 32px list; the selected row is tinted, not ringed | Find a section by shape; the list recedes |
+| Page strip: 2px accent outline on the active page, no glow; status glyphs are icons; context menu on a raised surface | Selection = accent, nothing else is |
+| Canvas well is the darkest surface; Fabric selection handles use the accent | The page is the brightest thing on screen |
+| Preview, music picker, recording overlay, statistics and shortcuts dialogs restyled; shortcuts shown as key caps | Same system everywhere |
+
+### Selected photo (`PropertiesPanel`) and text (`TextPropertiesPanel`)
+| Change | Why |
+|---|---|
+| Header = back button + "Photo" + file name; directly below, on every tab, **Erase / restore** (and **Clear** when a mask exists) | The headline editing feature was the last control of the first tab |
+| Icon + label tabs: Move, Adjust, Filters, Frame, Shadow, Caption | Six 10.5px text tabs were unreadable |
+| Each tab is split into named sections (Frame · Position & size · Rotate & flip · Opacity; Light · Colour · Detail; …) | Progressive grouping instead of one long column |
+| Sliders show live values, tint when changed, reset on double-click; bipolar sliders fill from zero | Conventions 4 |
+| Two-way choices are segmented controls; "Add border / Add shadow" are secondary, "Remove" is quiet | Only real primaries are filled |
+
+### Erase / restore studio (`CutoutEditor`) — template only, brush logic untouched
+| Change | Why |
+|---|---|
+| Tool choice is one large segmented control with icons: **Erase · Restore · Pan** (E / R / Space) | The mode you are in must be unmistakable |
+| Order: Tool → Brush (Size, Opacity, Hardness) → History → View → Automatic → Sticker | Most-used first; one-off actions last |
+| **Apply** is the only accent button, pinned in a footer with Cancel; the body scrolls, the footer never does | The AI button used to be the first filled button and Apply sat mid-panel |
+| Shortcuts shown as key caps | Keyboard affordance without a manual |
+
+### Pixart (`PixartView`)
+Slim top bar (Home · name · Undo/Redo · Zoom · Open another… · **Save image**), the same insert bar and the same panels as the album editor; the start screen is an empty state with one button.
+
+### Welcome (`WelcomeView`)
+Order is now **Start → Your albums → Tools**: one large "New album" button, the resume-collage row, album cards (cover, name, one meta line, delete on hover/focus), an empty state that says what to do, then four tool cards with an icon and a one-line purpose. Gradient, glow and emoji removed.
+
+### Setup wizard, Export, Collage, Duplicate finders
+Flows **kept**; brought to the system. Wizard: numbered stepper with done/current/upcoming states, pinned footer with Back (quiet) and Next (accent). Export: sectioned form, warning callout for the print checklist, pinned footer with **Export**. Collage: step context in the top bar, one primary per phase, insert bar in the edit phase. Duplicate finders: first-run empty state, review-first results, a pinned action bar with the marked count beside the one action; red is used only on what will be moved.
+
+### Controls that moved (old place → new place)
+| Control | From | To |
+|---|---|---|
+| Page label "Page n of m" | editor top bar, centre | insert bar, right (with new previous/next buttons) |
+| Add photo (album editor) | full-width button in the Layers tab | insert bar "Photo"; a small "Add photo" stays in the Layers header |
+| Add photo (Pixart) | top bar | insert bar "Photo"; the Layers one stays |
+| Keyboard-shortcuts dialog | `?` key only | also a top-bar icon button |
+| Erase / restore, Clear erasing (+ hint) | bottom of the Move tab | action row under the panel header, all tabs |
+| Opacity slider (photo) | between rotation and flip | its own "Opacity" section |
+| Bend (text) | after Colour | "Spacing & shape" section |
+| Remove background (studio) | top of the panel, filled | "Automatic" section, secondary |
+| Apply (studio) | middle of the panel | pinned footer (Cancel added beside it, same as close) |
+| Save as sticker (studio, sticker mode) | panel body | footer primary (there is no Apply in that mode) |
+| Design tab order | Patterns, Frames, stickers | stickers first, then Patterns, Frames & corners |
+| Quick tools (Welcome) | above the album list | below it |
+| Reveal folder / Refresh (Welcome) | text links | icon buttons in the "Your albums" header |
+| Version (Welcome) | footer | header, right |
+| Move N to duplicate folder | Duplicate Finder top bar | pinned bottom action bar, right |
+| Pick folder (Duplicate Finder) | top bar | centre empty state; "Change folder…" stays in the top bar |
+| Set counts (Duplicate Finder) | strictness row | bottom action bar, left |
+
+Renamed labels (same handlers): page-panel tab "Proverb" → "Text"; "Cover / Contain" → "Fill frames / Fit whole"; "Focus ↔ / ↕" → "Focus horizontal / vertical".
+New entry points to existing functions: zoom **Fit** (`editor.resetZoom`), page previous/next (`editor.setPage`), Text / Sticker insert buttons (open the matching page-panel tab), Cancel beside Apply / Export.
+
+## 6. Non-template changes
+
+Presentation-only, listed so they can be audited:
+
+- `PagePanel.vue` — optional `tab` v-model (prop `tab`, emit `update:tab`) so a host view can open a tab; without it the panel keeps its own state. Noted in `MODULES.md`.
+- `AlbumEditorView.vue`, `PixartView.vue`, `CollageView.vue` — a `pageTab` ref, `openPageTab()`, page stepper, and `useAddPhoto()` for the insert bar.
+- `AlbumCanvas.vue` — four colour literals for Fabric selection/crop/drop outlines changed from the old purple to the accent; no logic touched.
+- `AppModal.vue` — Esc closes the dialog (capture phase, so the screen underneath does not also react).
+- `AppSlider.vue` — double-click reset and fill computation.
+- Icon fields and option arrays for tabs / segmented controls in several panels; one tooltip-text computed in the wizard.
+
+## 7. Known gaps
+
+- The light ramp is defined but not visually verified (no screen exposes the toggle).
+- Number fields for X / Y / W / H show unrounded values, as before.
+- Selecting a text block through the page panel's pencil opens an empty properties panel — this predates the redesign (the canvas selection request does not carry the object type) and needs a logic fix, which is out of scope here.

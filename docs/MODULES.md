@@ -49,7 +49,7 @@ it depends on, what depends on it, and the **invariants** that must not be broke
   (b) `PagePanel` composes `LayoutPicker` / `DecorationPanel` / `ProverbPanel`.
 - Components share state **only through Pinia stores**. The only props/emits in the
   app are `PageTurnScene` (`pageIndex` ↓, `pageChanged` ↑), `CutoutEditor`
-  (`filename`/`imageId` ↓, `close` ↑), `PagePanel`'s optional `variant` ↓ and `ui/` primitives.
+  (`filename`/`imageId` ↓, `close` ↑), `PagePanel`'s optional `variant` ↓ + optional `tab` v-model (the host's insert bar opens a tab), and `ui/` primitives.
   This is the "loosely coupled, only needed props/emits" design the project wants.
 
 ---
@@ -196,7 +196,10 @@ Renderer-only (use Fabric/DOM/`window`): `pageRenderer`, `fabricFilters`,
   drag→place/move).
 - `editor/AiConnectModal.vue` — **🤖 Connect AI**: copy MCP config + starter prompt
   (via `window.pebble.getMcpConnectInfo`) to drive the app from an AI agent.
-- `ui/*` — generic primitives (Button/Modal/Toast/Slider/ColorPicker/Dropdown/Tooltip/Progress).
+- `ui/*` — generic primitives (Button/IconButton/Segmented/Tabs/Modal/Toast/Slider/ColorPicker/
+  Dropdown/Tooltip/Progress/EmptyState) + `AppIcon` rendering the ONE stroke-icon set in `ui/icons.ts`.
+  App-chrome colours/type/radius are tokens in `src/style.css` (`--ui-*`) mapped by `tailwind.config.js`;
+  ⚠ they are NOT the album theme (`--pa-theme-*`, `themeEngine.injectThemeVars`). See `UI_REDESIGN.md`.
 - `editor/ImageBin.vue`, `editor/PageConfigPanel.vue` — **DEPRECATED stubs** (host
   FS blocks deletion). Superseded by PagePanel + ImageStrip. Safe to delete.
 
