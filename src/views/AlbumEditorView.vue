@@ -36,6 +36,7 @@ import CutoutEditor from '@/components/editor/CutoutEditor.vue';
 import { SlideshowPlaylist, recordSlideshow, cancelRecording, slideshowTotalSec, pageDuration, type RecordProgress, type SceneHandle } from '@/engine/slideshowMedia';
 import type { MusicTrack } from '@shared/ipc.types';
 import { useAddPhoto } from '@/composables/useAddPhoto';
+import { MOD, isTextEntry, isRangeInput } from '@/composables/keyboard';
 
 const router = useRouter();
 const project = useProjectStore();
@@ -260,11 +261,36 @@ function deleteSelected() {
   editor.requestRender();
 }
 
+// --- Preview chrome auto-hide (presentation only) ----------------------------
+// In the fullscreen slideshow the control bar, Exit button and page arrows fade
+// out after a few seconds without pointer movement so nothing covers the page,
+// and come back on any move / click / keyboard focus. They stay while the
+// pointer rests on the bar, the music picker is open or a recording is running.
+const chromeVisible = ref(true);
+let chromeTimer: ReturnType<typeof setTimeout> | null = null;
+let chromeHeld = false;
+function pokeChrome() {
+  chromeVisible.value = true;
+  if (chromeTimer) clearTimeout(chromeTimer);
+  chromeTimer = setTimeout(() => {
+    if (!chromeHeld && !showMusic.value && !recording.value) chromeVisible.value = false;
+  }, 3000);
+}
+function holdChrome(on: boolean) { chromeHeld = on; pokeChrome(); }
+watch(previewMode, (on) => { if (on) pokeChrome(); else if (chromeTimer) clearTimeout(chromeTimer); });
+
 function onKey(e: KeyboardEvent) {
   // The Erase/restore studio is modal and owns the keyboard (its own undo/Esc/
   // Space) — page shortcuts must not fire underneath it.
   if (editor.cutoutRequest) return;
   const meta = e.ctrlKey || e.metaKey;
+  // Typing guard: while the user types in a field (caption, text content, X/Y/
+  // W/H, hex colour, a select) the keys belong to that field — otherwise
+  // Backspace in the Caption box deletes the selected photo. Only Escape and
+  // Save pass through. Sliders and checkboxes are not text entry (Delete/undo
+  // still work after dragging a slider), but a focused slider keeps its arrows.
+  if (isTextEntry(e.target) && !(e.key === 'Escape' || (meta && e.key === 's'))) return;
+  if (isRangeInput(e.target) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
   if (e.key === 'Escape') { if (previewMode.value) previewMode.value = false; else if (editor.cropImageId) { editor.cropImageId = null; editor.requestRender(); } else editor.selectObject(null); }
   else if (meta && e.key === 'z') { e.preventDefault(); e.shiftKey ? history.redo() : history.undo(); }
   else if (meta && e.key === 'y') { e.preventDefault(); history.redo(); }
@@ -281,14 +307,15 @@ function onKey(e: KeyboardEvent) {
     if (previewMode.value) turnScene.value?.prev();
     else if (editor.activePageIndex > 0) editor.setPage(editor.activePageIndex - 1);
   }
-  else if (e.key === '?') { showShortcuts.value = true; }
+  // (Not in Preview: the dialog would open underneath the fullscreen slideshow.)
+  else if (e.key === '?' && !previewMode.value) { showShortcuts.value = true; }
 }
 
 onMounted(() => {
   if (!project.project) { router.replace('/'); return; }
   window.addEventListener('keydown', onKey);
 });
-onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutoplay(); });
+onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutoplay(); if (chromeTimer) clearTimeout(chromeTimer); });
 </script>
 
 <template>
@@ -305,8 +332,8 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
 
       <div class="w-px h-5 bg-pebble-border mx-1.5" />
       <div class="flex items-center">
-        <AppIconButton icon="undo" :label="history.undoLabel || 'Undo'" shortcut="⌘Z" :disabled="!history.canUndo" disabled-hint="Nothing to undo" @click="history.undo()" />
-        <AppIconButton icon="redo" :label="history.redoLabel || 'Redo'" shortcut="⇧⌘Z" :disabled="!history.canRedo" disabled-hint="Nothing to redo" @click="history.redo()" />
+        <AppIconButton icon="undo" :label="history.undoLabel || 'Undo'" :shortcut="`${MOD}Z`" :disabled="!history.canUndo" disabled-hint="Nothing to undo" @click="history.undo()" />
+        <AppIconButton icon="redo" :label="history.redoLabel || 'Redo'" :shortcut="`${MOD}Shift+Z`" :disabled="!history.canRedo" disabled-hint="Nothing to redo" @click="history.redo()" />
       </div>
 
       <div class="w-px h-5 bg-pebble-border mx-1.5" />
@@ -314,7 +341,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
         <AppIconButton icon="zoom-out" label="Zoom out" @click="editor.zoomOut()" />
         <span class="w-11 text-center text-xs tabular-nums text-pebble-text" title="Zoom">{{ editor.zoomPercent }}%</span>
         <AppIconButton icon="zoom-in" label="Zoom in" @click="editor.zoomIn()" />
-        <AppIconButton icon="maximize" label="Fit page to window" shortcut="⌘0" @click="editor.resetZoom()" />
+        <AppIconButton icon="maximize" label="Fit page to window" :shortcut="`${MOD}0`" @click="editor.resetZoom()" />
       </div>
 
       <div class="flex-1" />
@@ -325,7 +352,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
       <AppButton size="md" variant="ghost" icon="images" title="Choose which photos from the folder are used in the album" @click="showSelect = true"><span class="hidden xl:inline">Select images</span></AppButton>
       <AppButton size="md" variant="ghost" icon="bot" title="Let an AI agent edit this album through the built-in MCP server" @click="showAi = true"><span class="hidden xl:inline">Connect AI</span></AppButton>
       <AppButton size="md" variant="secondary" icon="play" title="Fullscreen slideshow preview" @click="previewMode = !previewMode">{{ previewMode ? 'Edit' : 'Preview' }}</AppButton>
-      <AppButton size="md" variant="secondary" icon="save" title="Save (⌘S)" @click="saveAndAnnounce">Save</AppButton>
+      <AppButton size="md" variant="secondary" icon="save" :title="`Save (${MOD}S)`" @click="saveAndAnnounce">Save</AppButton>
       <AppButton size="md" icon="upload" title="Export the album as PDF or images" @click="router.push('/export')">Export</AppButton>
     </header>
 
@@ -383,16 +410,18 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
     </div>
 
     <!-- Fullscreen preview (slideshow): only the page is shown, all chrome hidden -->
-    <div v-if="previewMode" class="fixed inset-0 z-[80] bg-black flex flex-col">
+    <div v-if="previewMode" class="fixed inset-0 z-[80] bg-black flex flex-col" :class="chromeVisible ? '' : 'cursor-none'"
+         @pointermove="pokeChrome" @pointerdown="pokeChrome" @focusin="pokeChrome">
       <PageTurnScene ref="turnScene" class="flex-1 min-h-0" :page-index="editor.activePageIndex"
                      :ken-burns="kenBurns" @page-changed="editor.setPage($event)" />
-      <button type="button" class="absolute top-4 right-4 h-8 pl-2 pr-3 inline-flex items-center gap-1.5 rounded-md bg-pebble-surface-2/90 border border-pebble-border-strong/50 text-pebble-text text-xs font-medium hover:bg-pebble-hover"
+      <button type="button" :class="chromeVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'" class="transition-opacity duration-300 absolute top-4 right-4 h-8 pl-2 pr-3 inline-flex items-center gap-1.5 rounded-md bg-pebble-surface-2/90 border border-pebble-border-strong/50 text-pebble-text text-xs font-medium hover:bg-pebble-hover"
               title="Exit preview (Esc)" @click="previewMode = false"><AppIcon name="x" :size="15" />Exit preview</button>
-      <button type="button" class="absolute inset-y-0 left-0 flex items-center px-3 text-white/60 hover:text-white transition-colors" title="Previous page (←)" aria-label="Previous page" @click="turnScene?.prev()"><AppIcon name="chevron-left" :size="36" /></button>
-      <button type="button" class="absolute inset-y-0 right-0 flex items-center px-3 text-white/60 hover:text-white transition-colors" title="Next page (→)" aria-label="Next page" @click="turnScene?.next()"><AppIcon name="chevron-right" :size="36" /></button>
+      <button type="button" :class="chromeVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'" class="absolute inset-y-0 left-0 flex items-center px-3 text-white/60 hover:text-white transition-[color,opacity] duration-300" title="Previous page (←)" aria-label="Previous page" @click="turnScene?.prev()"><AppIcon name="chevron-left" :size="36" /></button>
+      <button type="button" :class="chromeVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'" class="absolute inset-y-0 right-0 flex items-center px-3 text-white/60 hover:text-white transition-[color,opacity] duration-300" title="Next page (→)" aria-label="Next page" @click="turnScene?.next()"><AppIcon name="chevron-right" :size="36" /></button>
 
       <!-- Slideshow control bar -->
-      <div class="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-3 pl-2 pr-3 h-12 rounded-xl bg-pebble-surface-2/90 border border-pebble-border-strong/50 shadow-pop text-pebble-text text-xs whitespace-nowrap">
+      <div :class="chromeVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'" @pointerenter="holdChrome(true)" @pointerleave="holdChrome(false)"
+           class="transition-opacity duration-300 absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-3 pl-2 pr-3 h-12 rounded-xl bg-pebble-surface-2/90 border border-pebble-border-strong/50 shadow-pop text-pebble-text text-xs whitespace-nowrap">
         <button type="button" class="h-8 w-8 grid place-items-center rounded-md bg-pebble-accent text-pebble-on-accent hover:bg-pebble-accent-hover"
                 :title="autoplay ? 'Pause' : 'Play'" :aria-label="autoplay ? 'Pause' : 'Play'" @click="autoplay = !autoplay"><AppIcon :name="autoplay ? 'pause' : 'play'" :size="15" /></button>
         <span class="tabular-nums text-sm">{{ editor.activePageIndex + 1 }} / {{ project.pages.length }}</span>
@@ -442,15 +471,17 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
         </div>
       </div>
 
-      <!-- Recording overlay -->
-      <div v-if="recording" class="absolute inset-0 z-[86] bg-black/75 flex flex-col items-center justify-center gap-3 text-white">
-        <div class="flex items-center gap-2 text-lg font-semibold"><AppIcon name="film" :size="20" />Recording slideshow video…</div>
-        <div class="text-sm text-white/80 tabular-nums">Page {{ recording.page }} / {{ recording.total }} · ~{{ Math.round(recording.totalSec) }}s total</div>
-        <div class="w-72 h-1.5 rounded-full bg-white/15 overflow-hidden">
-          <div class="h-full rounded-full bg-pebble-accent transition-all" :style="{ width: `${Math.min(100, (recording.sec / Math.max(1, recording.totalSec)) * 100)}%` }" />
+      <!-- Recording overlay: status on a surface card so it reads over any page -->
+      <div v-if="recording" class="absolute inset-0 z-[86] bg-black/75 flex items-center justify-center p-6">
+        <div class="w-full max-w-sm rounded-2xl bg-pebble-surface border border-pebble-border shadow-modal p-5 flex flex-col items-center gap-3 text-center" role="status">
+          <div class="flex items-center gap-2 text-base font-semibold"><AppIcon name="film" :size="18" class="text-pebble-accent-soft" />Recording slideshow video…</div>
+          <div class="text-sm text-pebble-text-dim tabular-nums">Page {{ recording.page }} / {{ recording.total }} · ~{{ Math.round(recording.totalSec) }}s total</div>
+          <div class="w-full h-1.5 rounded-full bg-pebble-pressed overflow-hidden">
+            <div class="h-full rounded-full bg-pebble-accent transition-all" :style="{ width: `${Math.min(100, (recording.sec / Math.max(1, recording.totalSec)) * 100)}%` }" />
+          </div>
+          <p class="pa-hint">The video records the show in real time — exactly what you see, with your music. Keep this window visible.</p>
+          <AppButton size="md" variant="secondary" @click="cancelRecording()">Cancel</AppButton>
         </div>
-        <p class="text-xs text-white/70 max-w-sm text-center">The video records the show in real time — exactly what you see, with your music. Keep this window visible.</p>
-        <AppButton size="md" variant="secondary" @click="cancelRecording()">Cancel</AppButton>
       </div>
     </div>
 

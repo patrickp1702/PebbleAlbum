@@ -41,6 +41,7 @@ import { useProjectStore, createDefaultMeta } from '@/stores/projectStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { useHistoryStore, type Command } from '@/stores/historyStore';
 import { useAddPhoto, buildFreePhotos } from '@/composables/useAddPhoto';
+import { MOD } from '@/composables/keyboard';
 import { defaultEffects } from '@/engine/collageComposer';
 import { renderPageStatic } from '@/engine/pageRenderer';
 import { clearImageCache } from '@/engine/imageLoader';
@@ -84,8 +85,6 @@ function openPageTab(t: 'proverb' | 'design') {
   editor.requestRender();
   pageTab.value = t;
 }
-/** Platform modifier glyph for the shortcut hints in tooltips. */
-const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
 const sizeLabel = computed(() => (project.meta ? `${project.meta.albumWidth} × ${project.meta.albumHeight}px` : ''));
 

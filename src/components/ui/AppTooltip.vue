@@ -39,11 +39,17 @@ const enter = () => {
   timer = setTimeout(() => { show.value = true; void place(); }, 350);
 };
 const leave = () => { if (timer) clearTimeout(timer); show.value = false; };
+/** Focus shows the tooltip only for KEYBOARD focus. A mouse click also focuses
+ *  the button — without this check the bubble pops back up after every click. */
+const focus = (e: FocusEvent) => {
+  const el = e.target as HTMLElement | null;
+  if (el?.matches?.(':focus-visible')) enter();
+};
 </script>
 
 <template>
   <span ref="host" class="relative inline-flex" @mouseenter="enter" @mouseleave="leave"
-        @focusin="enter" @focusout="leave" @pointerdown="leave">
+        @focusin="focus" @focusout="leave" @pointerdown="leave">
     <slot />
     <Teleport to="body">
       <span v-if="show" ref="bubble" role="tooltip"

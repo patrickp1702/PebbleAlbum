@@ -13,7 +13,7 @@ const emit = defineEmits<{ (e: 'update:open', v: boolean): void }>();
 /** Esc closes the top-most dialog only (capture phase: screens underneath that
  *  also listen for Esc — e.g. the editor's "deselect" — must not react too). */
 function onKey(e: KeyboardEvent) {
-  if (e.key !== 'Escape') return;
+  if (e.key !== 'Escape' || e.isComposing) return; // Esc that dismisses an IME candidate is not ours
   e.stopPropagation();
   emit('update:open', false);
 }
