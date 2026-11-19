@@ -1,9 +1,13 @@
 <script setup lang="ts">
 /**
- * WelcomeView.vue — Launch screen. New Project + a grid of all SAVED projects
- * (read from ~/PebbleAlbum/projects). Each card opens its project or can be
- * deleted with the × button. A secondary "Open from file…" still allows opening
- * a .pebble from anywhere via the OS dialog.
+ * WelcomeView.vue — Launch screen, ordered by what the user came to do:
+ *   1. Start    — the ONE primary action, "New album" (+ the Resume-collage row
+ *                 when an unfinished collage session exists).
+ *   2. Continue — "Your albums": every SAVED project (read from the Pebble
+ *                 projects folder). A card opens its project; its trash button
+ *                 deletes it (after a confirm dialog). Empty state says what to do.
+ *   3. Tools    — the standalone tools (no project needed): Collage Creator,
+ *                 Duplicate Finder, Duplicate Folders, Pixart.
  */
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -12,6 +16,10 @@ import { useProjectStore } from '@/stores/projectStore';
 import type { RecentProject } from '@shared/editor.types';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppModal from '@/components/ui/AppModal.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
+import AppIconButton from '@/components/ui/AppIconButton.vue';
+import AppEmptyState from '@/components/ui/AppEmptyState.vue';
+import type { IconName } from '@/components/ui/icons';
 
 const router = useRouter();
 const app = useAppStore();
@@ -23,6 +31,14 @@ const confirmDelete = ref<RecentProject | null>(null);
 const collageResume = ref<{ photos: number; editing: boolean } | null>(null);
 
 const folder = ref('');
+
+/** Standalone tools: icon, name and ONE line of purpose each. */
+const TOOLS: { to: string; icon: IconName; title: string; text: string }[] = [
+  { to: '/collage', icon: 'collage', title: 'Collage Creator', text: 'Arrange a few photos into one image and download it.' },
+  { to: '/pixart', icon: 'brush', title: 'Pixart — Photo Editor', text: 'Edit one photo: layer, erase, adjust, filter, save.' },
+  { to: '/duplicates', icon: 'search', title: 'Duplicate Finder', text: 'Group similar and burst photos, then move the extras aside.' },
+  { to: '/folder-duplicates', icon: 'folders', title: 'Duplicate Folders', text: 'Find folders and files duplicated across drives.' },
+];
 
 async function refresh() {
   loading.value = true;
@@ -78,106 +94,110 @@ async function doDelete() {
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col items-center bg-gradient-to-br from-pebble-bg to-[#10162e] p-8 overflow-auto">
-    <div class="text-center mb-8 mt-6">
-      <div class="mx-auto mb-4 h-16 w-16 rounded-2xl bg-pebble-accent flex items-center justify-center text-3xl shadow-xl shadow-pebble-accent/30">📷</div>
-      <h1 class="text-4xl font-bold tracking-tight">PebbleAlbum</h1>
-      <p class="text-pebble-text-dim mt-1">Professional photo album creation studio</p>
-    </div>
+  <div class="h-full w-full overflow-auto bg-pebble-bg">
+    <div class="mx-auto w-full max-w-5xl px-8 py-8">
+      <!-- Header: identity, quiet -->
+      <header class="flex items-center gap-3 mb-8">
+        <div class="h-9 w-9 shrink-0 rounded-lg bg-pebble-accent text-pebble-on-accent grid place-items-center">
+          <AppIcon name="book" :size="19" />
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-lg font-semibold leading-tight">PebbleAlbum</h1>
+          <p class="text-xs text-pebble-text-dim">Photo album studio</p>
+        </div>
+        <span class="ml-auto text-xs text-pebble-text-dim tabular-nums">v{{ app.appVersion }}</span>
+      </header>
 
-    <div class="flex gap-3 mb-8">
-      <AppButton size="lg" @click="router.push('/setup')">＋ New Album Project</AppButton>
-    </div>
+      <!-- 1. START -->
+      <section class="mb-8">
+        <div class="flex items-center gap-4 flex-wrap">
+          <AppButton size="lg" icon="plus" @click="router.push('/setup')">New album</AppButton>
+          <p class="text-sm text-pebble-text-dim">Pick a folder of photos — pages are laid out for you, then you fine-tune.</p>
+        </div>
 
-    <!-- Standalone tools (no project) -->
-    <div class="w-full max-w-4xl mb-10">
-      <h2 class="text-sm uppercase tracking-wider text-pebble-text-dim mb-3">Quick tools</h2>
+        <!-- Resume collage (only when an unfinished session exists) -->
+        <div v-if="collageResume" class="mt-4 flex items-center gap-3 rounded-lg bg-pebble-surface border border-pebble-border border-l-2 border-l-pebble-accent pl-3.5 pr-2 py-2.5">
+          <AppIcon name="collage" :size="18" class="text-pebble-accent-soft" />
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium">Unfinished collage</div>
+            <div class="text-xs text-pebble-text-dim">
+              {{ collageResume.editing ? 'Continue editing your collage' : 'Pick up where you left off' }}<span v-if="collageResume.photos"> · {{ collageResume.photos }} photo{{ collageResume.photos === 1 ? '' : 's' }}</span>
+            </div>
+          </div>
+          <AppButton size="sm" variant="secondary" @click="router.push('/collage')">Resume</AppButton>
+          <AppButton size="sm" variant="ghost" title="Discard the saved collage" @click="discardCollage">Discard</AppButton>
+        </div>
+      </section>
 
-      <!-- Resume collage (only when an unfinished session exists) -->
-      <div v-if="collageResume" class="pa-panel p-4 mb-4 border-pebble-accent/50 bg-pebble-accent/10 flex items-center gap-4">
-        <div class="h-11 w-11 shrink-0 rounded-xl bg-pebble-accent/25 text-pebble-accent grid place-items-center text-2xl">↩</div>
-        <div class="flex-1 min-w-0">
-          <div class="font-medium">Resume collage</div>
-          <div class="text-xs text-pebble-text-dim">
-            {{ collageResume.editing ? 'Continue editing your collage' : 'Pick up where you left off' }}<span v-if="collageResume.photos"> · {{ collageResume.photos }} photo{{ collageResume.photos === 1 ? '' : 's' }}</span>
+      <!-- 2. CONTINUE: saved albums -->
+      <section class="mb-8">
+        <div class="flex items-center gap-2 mb-3">
+          <h2 class="text-base font-semibold">Your albums</h2>
+          <span v-if="saved.length" class="text-xs text-pebble-text-dim tabular-nums">{{ saved.length }}</span>
+          <span class="ml-auto text-xs text-pebble-text-dim truncate max-w-[22rem] font-mono" :title="folder">{{ folder || 'Documents/Pebble' }}</span>
+          <AppIconButton v-if="folder" icon="folder" label="Reveal the albums folder" size="sm" @click="revealFolder" />
+          <AppIconButton icon="rotate-cw" label="Refresh the list" size="sm" @click="refresh" />
+        </div>
+
+        <div v-if="loading" class="rounded-lg border border-pebble-border bg-pebble-surface py-10 text-center text-sm text-pebble-text-dim">Loading albums…</div>
+
+        <div v-else-if="saved.length" class="grid grid-cols-4 gap-4">
+          <div v-for="r in saved" :key="r.path" role="button" tabindex="0"
+               class="group relative rounded-lg bg-pebble-surface border border-pebble-border cursor-pointer overflow-hidden transition-colors hover:bg-pebble-hover hover:border-pebble-border-strong"
+               :title="`Open ${r.name}`"
+               @click="open(r.path)" @keydown.enter.self="open(r.path)">
+            <div class="aspect-video bg-pebble-surface-2 flex items-center justify-center text-pebble-text-off overflow-hidden">
+              <img v-if="r.coverThumbnail" :src="r.coverThumbnail" class="object-cover w-full h-full" alt="" />
+              <AppIcon v-else name="image" :size="28" :stroke="1.5" />
+            </div>
+            <div class="px-3 py-2.5">
+              <div class="text-sm font-medium truncate">{{ r.name }}</div>
+              <div class="text-xs text-pebble-text-dim truncate mt-0.5">{{ r.pageCount }} pages · {{ r.imageCount }} photos · {{ new Date(r.lastOpened).toLocaleDateString() }}</div>
+            </div>
+            <button type="button"
+                    class="absolute top-2 right-2 h-7 w-7 rounded-md grid place-items-center bg-black/60 text-white/85 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:bg-pebble-danger-fill hover:text-white"
+                    title="Delete album…" aria-label="Delete album" @click.stop="confirmDelete = r">
+              <AppIcon name="trash" :size="14" />
+            </button>
           </div>
         </div>
-        <AppButton size="sm" @click="router.push('/collage')">Resume</AppButton>
-        <button class="text-xs text-pebble-text-dim hover:text-pebble-danger px-1" title="Discard the saved collage" @click="discardCollage">Discard</button>
-      </div>
 
-      <div class="grid grid-cols-3 gap-4">
-        <button class="pa-panel p-5 text-left hover:border-pebble-accent/60 transition flex items-start gap-4" @click="router.push('/collage')">
-          <div class="h-11 w-11 shrink-0 rounded-xl bg-pebble-accent/20 text-pebble-accent grid place-items-center text-2xl">🖼️</div>
-          <div>
-            <div class="font-medium">Collage Creator</div>
-            <div class="text-xs text-pebble-text-dim">Pick a folder, choose a few photos, make a collage and download it. No project needed.</div>
-          </div>
-        </button>
-        <button class="pa-panel p-5 text-left hover:border-pebble-accent/60 transition flex items-start gap-4" @click="router.push('/duplicates')">
-          <div class="h-11 w-11 shrink-0 rounded-xl bg-pebble-accent/20 text-pebble-accent grid place-items-center text-2xl">🔍</div>
-          <div>
-            <div class="font-medium">Duplicate Finder</div>
-            <div class="text-xs text-pebble-text-dim">Group similar/burst photos in a folder and move the unwanted ones into a <code>duplicate</code> subfolder.</div>
-          </div>
-        </button>
-        <button class="pa-panel p-5 text-left hover:border-pebble-accent/60 transition flex items-start gap-4" @click="router.push('/folder-duplicates')">
-          <div class="h-11 w-11 shrink-0 rounded-xl bg-pebble-accent/20 text-pebble-accent grid place-items-center text-2xl">🗂️</div>
-          <div>
-            <div class="font-medium">Duplicate Folders</div>
-            <div class="text-xs text-pebble-text-dim">Find whole folders (and files) duplicated within or across drives, by name + date. Handles huge trees.</div>
-          </div>
-        </button>
-        <button class="pa-panel p-5 text-left hover:border-pebble-accent/60 transition flex items-start gap-4" @click="router.push('/pixart')">
-          <div class="h-11 w-11 shrink-0 rounded-xl bg-pebble-accent/20 text-pebble-accent grid place-items-center text-2xl">🎨</div>
-          <div>
-            <div class="font-medium">Pixart — Photo Editor</div>
-            <div class="text-xs text-pebble-text-dim">Open a photo, add photos on top, move/resize/rotate, erase and restore with a brush, adjust and filter, then save.</div>
-          </div>
-        </button>
-      </div>
-    </div>
-
-    <div class="w-full max-w-4xl">
-      <div class="flex items-center justify-between mb-1">
-        <h2 class="text-sm uppercase tracking-wider text-pebble-text-dim">Open a Project</h2>
-        <button class="text-xs text-pebble-text-dim hover:text-pebble-text" @click="refresh">↻ Refresh</button>
-      </div>
-      <p class="text-xs text-pebble-text-dim mb-3">
-        Saved in <span class="font-mono">{{ folder || 'Documents/Pebble' }}</span>
-        <button v-if="folder" class="ml-2 text-pebble-accent-soft hover:underline" @click="revealFolder">Reveal folder</button>
-      </p>
-
-      <div v-if="loading" class="pa-panel p-10 text-center text-pebble-text-dim">Loading…</div>
-
-      <div v-else-if="saved.length" class="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div v-for="r in saved" :key="r.path"
-             class="pa-panel group relative p-4 cursor-pointer hover:border-pebble-accent/60 transition"
-             @click="open(r.path)">
-          <div class="aspect-video rounded bg-pebble-bg mb-3 flex items-center justify-center text-pebble-text-dim overflow-hidden">
-            <img v-if="r.coverThumbnail" :src="r.coverThumbnail" class="object-cover w-full h-full" />
-            <span v-else class="text-3xl">🖼️</span>
-          </div>
-          <div class="font-medium truncate">{{ r.name }}</div>
-          <div class="text-xs text-pebble-text-dim">{{ new Date(r.lastOpened).toLocaleString() }} · {{ r.imageCount }} images · {{ r.pageCount }} pages</div>
-          <button class="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 text-pebble-text-dim hover:text-pebble-danger hover:bg-black/70"
-                  title="Delete project" @click.stop="confirmDelete = r">✕</button>
+        <div v-else class="rounded-lg border border-dashed border-pebble-border-strong/60">
+          <AppEmptyState icon="book" title="No albums yet"
+                         text="Create your first album — it is saved here automatically and you can pick it up any time."
+                         class="!py-7">
+            <AppButton variant="secondary" icon="plus" @click="router.push('/setup')">New album</AppButton>
+          </AppEmptyState>
         </div>
-      </div>
+      </section>
 
-      <div v-else class="pa-panel p-10 text-center text-pebble-text-dim">
-        <div class="text-4xl mb-2">✨</div>
-        <p>No saved projects yet. Create your first album — it'll be saved here automatically.</p>
-      </div>
+      <!-- 3. TOOLS (standalone, no project) -->
+      <section>
+        <h2 class="text-base font-semibold mb-3">Tools</h2>
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          <button v-for="t in TOOLS" :key="t.to" type="button"
+                  class="group flex items-start gap-3 text-left rounded-lg bg-pebble-surface border border-pebble-border p-3.5 transition-colors hover:bg-pebble-hover hover:border-pebble-border-strong"
+                  @click="router.push(t.to)">
+            <div class="h-9 w-9 shrink-0 rounded-md bg-pebble-surface-2 border border-pebble-border text-pebble-text grid place-items-center group-hover:text-pebble-accent-soft">
+              <AppIcon :name="t.icon" :size="18" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium flex items-center gap-1">
+                <span class="truncate">{{ t.title }}</span>
+                <AppIcon name="chevron-right" :size="14" class="text-pebble-text-off group-hover:text-pebble-text" />
+              </div>
+              <div class="text-xs text-pebble-text-dim mt-0.5">{{ t.text }}</div>
+            </div>
+          </button>
+        </div>
+      </section>
     </div>
 
-    <footer class="mt-8 text-xs text-pebble-text-dim">PebbleAlbum v{{ app.appVersion }}</footer>
-
-    <AppModal :open="!!confirmDelete" title="Delete project?" width="420px" @update:open="(v) => { if (!v) confirmDelete = null; }">
+    <AppModal :open="!!confirmDelete" title="Delete album?" width="420px" @update:open="(v) => { if (!v) confirmDelete = null; }">
       <p class="text-sm">Delete <b>{{ confirmDelete?.name }}</b> permanently? This removes the .pebble file. Your source photos are not affected.</p>
       <template #footer>
         <AppButton variant="ghost" @click="confirmDelete = null">Cancel</AppButton>
-        <AppButton variant="danger" @click="doDelete">Delete</AppButton>
+        <AppButton variant="danger" icon="trash" @click="doDelete">Delete</AppButton>
       </template>
     </AppModal>
   </div>

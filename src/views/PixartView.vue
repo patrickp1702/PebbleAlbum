@@ -5,10 +5,16 @@
  * The THIRD consumer of the album's image-editing module (after AlbumEditorView and
  * CollageView): AlbumCanvas + PropertiesPanel + TextPropertiesPanel + PagePanel +
  * CutoutEditor, reused unchanged — no forked editing logic. Two phases:
- *   1. start — a centred "Open photo…" call to action.
- *   2. edit  — the photo IS the page: move/resize/rotate, ＋ Add photo overlays,
- *              adjust/filter/frame/shadow/caption, ✎ Erase / restore with a brush,
- *              then ⬇ Save image (full-resolution PNG).
+ *   1. start — an empty state with one "Open photo…" call to action.
+ *   2. edit  — the photo IS the page: move/resize/rotate, Add photo overlays,
+ *              adjust/filter/frame/shadow/caption, Erase / restore with a brush,
+ *              then Save image (full-resolution PNG).
+ *
+ * Chrome (same shape as the album editor): a slim top bar — home, title, undo/
+ * redo, zoom, then "Open another…" and the ONE primary action, Save image — and
+ * an insert bar above the canvas holding the Add actions (Photo / Text /
+ * Sticker). Text and Sticker open the matching tab of the page panel, whose
+ * active tab this view owns (`pageTab`) so it survives select → back.
  *
  * Model: a one-page in-memory project exactly like Collage (`autoSave:false`, save
  * path null ⇒ nothing is ever written as a .pebble). The page is sized to the BASE
@@ -40,7 +46,9 @@ import { renderPageStatic } from '@/engine/pageRenderer';
 import { clearImageCache } from '@/engine/imageLoader';
 import type { AlbumPage, ImageRecord, Orientation, PageImage, PebbleProject } from '@shared/pebble.types';
 import AppButton from '@/components/ui/AppButton.vue';
-import AppTooltip from '@/components/ui/AppTooltip.vue';
+import AppIconButton from '@/components/ui/AppIconButton.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
+import AppEmptyState from '@/components/ui/AppEmptyState.vue';
 import AlbumCanvas from '@/components/canvas/AlbumCanvas.vue';
 import PropertiesPanel from '@/components/editor/PropertiesPanel.vue';
 import TextPropertiesPanel from '@/components/editor/TextPropertiesPanel.vue';
@@ -66,6 +74,18 @@ const workspace = ref('');
 /** File name of the base photo, for the saved image's default name. */
 const baseName = ref('');
 const baseId = ref<string | null>(null);
+
+/** Active tab of the page panel — owned here so the insert bar can open it. */
+const pageTab = ref<'layers' | 'layout' | 'design' | 'proverb' | 'settings'>('layers');
+/** Insert bar → Text / Sticker: leave the selection panel and show that tab. */
+function openPageTab(t: 'proverb' | 'design') {
+  editor.cropImageId = null;
+  editor.propertiesOpen = false;
+  editor.requestRender();
+  pageTab.value = t;
+}
+/** Platform modifier glyph for the shortcut hints in tooltips. */
+const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
 const sizeLabel = computed(() => (project.meta ? `${project.meta.albumWidth} × ${project.meta.albumHeight}px` : ''));
 
@@ -269,61 +289,76 @@ onBeforeUnmount(() => {
   <div class="h-full w-full flex flex-col bg-pebble-bg">
     <!-- ─────────────────────────── START PHASE ─────────────────────────── -->
     <template v-if="phase === 'start'">
-      <header class="h-14 shrink-0 flex items-center gap-3 px-5 border-b border-pebble-border">
-        <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-pebble-hover" @click="router.push('/')">‹ Home</button>
-        <div class="font-semibold">Pixart</div>
-        <span class="text-2xs text-pebble-text-dim">Open a photo → edit → save</span>
+      <header class="pa-topbar">
+        <AppIconButton icon="home" label="Back to home" @click="router.push('/')" />
+        <span class="font-semibold">Pixart</span>
+        <span class="text-xs text-pebble-text-dim">Photo editor</span>
       </header>
 
-      <section class="flex-1 flex items-center justify-center p-8 overflow-auto bg-[#0d1124]">
-        <div class="text-center max-w-md">
-          <div class="text-5xl mb-3">🎨</div>
-          <h1 class="text-2xl font-semibold mb-2">Pixart — Photo Editor</h1>
-          <p class="text-pebble-text-dim text-sm mb-6">
-            Open a photo to edit it with the same tools as an album page: add photos on top, move · resize · rotate,
-            ✎ erase and restore with a brush, adjust, filter, frame and shadow — then save it as an image.
-          </p>
-          <AppButton size="lg" :disabled="opening" @click="openPhoto">{{ opening ? 'Opening…' : 'Open photo…' }}</AppButton>
-          <p class="text-2xs text-pebble-text-dim mt-4 leading-relaxed">
+      <section class="flex-1 flex items-center justify-center overflow-auto">
+        <AppEmptyState icon="image" title="Open a photo to start"
+                       text="Add photos on top, move, resize and rotate them, erase and restore with a brush, adjust, filter and frame — then save the result as an image.">
+          <AppButton size="lg" icon="folder" :disabled="opening" @click="openPhoto">{{ opening ? 'Opening…' : 'Open photo…' }}</AppButton>
+          <template #hint>
             Pick several at once: the first becomes the base, the rest are placed on top.
             Edits are kept until you close Pixart or open another photo.
-          </p>
-        </div>
+          </template>
+        </AppEmptyState>
       </section>
     </template>
 
     <!-- ─────────────────────────── EDIT PHASE ──────────────────────────── -->
     <template v-else>
-      <header class="flex items-center gap-2 px-3 h-12 bg-pebble-surface border-b border-pebble-border text-sm">
-        <button class="text-pebble-text-dim hover:text-pebble-text px-2" @click="goHome">‹ Home</button>
+      <header class="pa-topbar">
+        <AppIconButton icon="home" label="Back to home" @click="goHome" />
         <span class="font-semibold">Pixart</span>
-        <span class="text-pebble-text-dim text-xs truncate max-w-[14rem]" :title="baseName">{{ baseName }} · {{ sizeLabel }}</span>
-        <div class="flex items-center gap-1 ml-3">
-          <AppTooltip :text="history.undoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canUndo" @click="history.undo()">↶</button></AppTooltip>
-          <AppTooltip :text="history.redoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canRedo" @click="history.redo()">↷</button></AppTooltip>
+        <span class="text-pebble-text-dim text-xs truncate max-w-[16rem]" :title="baseName">{{ baseName }} · {{ sizeLabel }}</span>
+
+        <div class="flex items-center ml-3">
+          <AppIconButton icon="undo" :label="history.undoLabel || 'Undo'" :shortcut="`${MOD}Z`"
+                         :disabled="!history.canUndo" disabled-hint="Nothing to undo" @click="history.undo()" />
+          <AppIconButton icon="redo" :label="history.redoLabel || 'Redo'" :shortcut="`${MOD}Shift+Z`"
+                         :disabled="!history.canRedo" disabled-hint="Nothing to redo" @click="history.redo()" />
         </div>
-        <div class="flex items-center gap-1 ml-3">
-          <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomOut()">−</button>
-          <span class="w-12 text-center tabular-nums">{{ editor.zoomPercent }}%</span>
-          <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomIn()">＋</button>
+        <div class="w-px h-5 bg-pebble-border mx-1" />
+        <div class="flex items-center">
+          <AppIconButton icon="zoom-out" label="Zoom out" @click="editor.zoomOut()" />
+          <span class="w-12 text-center text-xs tabular-nums">{{ editor.zoomPercent }}%</span>
+          <AppIconButton icon="zoom-in" label="Zoom in" @click="editor.zoomIn()" />
+          <AppIconButton icon="maximize" label="Fit to window" :shortcut="`${MOD}0`" @click="editor.resetZoom()" />
         </div>
-        <div class="flex-1 text-center text-pebble-text-dim text-xs truncate">Drag · resize · rotate · ✎ erase/restore in the right panel · edits kept until you close or open another photo</div>
-        <AppButton size="sm" variant="secondary" :disabled="adding" title="Add photos from your computer on top" @click="addPhotos">{{ adding ? 'Adding…' : '＋ Add photo' }}</AppButton>
-        <AppButton size="sm" variant="ghost" :disabled="opening" @click="openPhoto">Open another…</AppButton>
-        <AppButton size="sm" :disabled="saving" @click="saveImage">{{ saving ? 'Saving…' : '⬇ Save image' }}</AppButton>
+
+        <div class="flex-1" />
+        <AppButton size="sm" variant="ghost" icon="folder" :disabled="opening"
+                   title="Open a different photo (asks before discarding this edit)" @click="openPhoto">Open another…</AppButton>
+        <AppButton size="sm" icon="download" :disabled="saving" title="Save as a full-resolution PNG" @click="saveImage">{{ saving ? 'Saving…' : 'Save image' }}</AppButton>
       </header>
 
       <div class="flex-1 flex min-h-0">
         <!-- Center: the photo IS the canvas (reused) -->
         <section class="flex-1 flex flex-col min-w-0 relative">
+          <!-- Insert bar: the Add actions, always in the same place above the photo -->
+          <div class="h-10 shrink-0 flex items-center gap-1.5 px-3 bg-pebble-surface border-b border-pebble-border">
+            <span class="pa-section mr-1">Add</span>
+            <button type="button" class="pa-btn !h-7" :disabled="adding" title="Add photos from your computer on top" @click="addPhotos">
+              <AppIcon name="image-plus" :size="15" />{{ adding ? 'Adding…' : 'Photo' }}
+            </button>
+            <button type="button" class="pa-btn !h-7" title="Add text — opens the Text tab" @click="openPageTab('proverb')">
+              <AppIcon name="type" :size="15" />Text
+            </button>
+            <button type="button" class="pa-btn !h-7" title="Add stickers and patterns — opens the Design tab" @click="openPageTab('design')">
+              <AppIcon name="sticker" :size="15" />Sticker
+            </button>
+            <span class="flex-1 min-w-0 text-right pa-hint truncate">Select a photo to move, resize, rotate or erase parts of it</span>
+          </div>
           <AlbumCanvas />
         </section>
 
         <!-- Right: per-object properties / layers (reused) -->
-        <aside class="w-72 shrink-0 bg-pebble-surface border-l border-pebble-border">
+        <aside class="w-[304px] shrink-0 bg-pebble-surface border-l border-pebble-border">
           <TextPropertiesPanel v-if="editor.hasSelection && editor.propertiesOpen && editor.selectedType === 'text'" />
           <PropertiesPanel v-else-if="editor.hasSelection && editor.propertiesOpen && editor.selectedType === 'image'" />
-          <PagePanel v-else variant="photo" />
+          <PagePanel v-else v-model:tab="pageTab" variant="photo" />
         </aside>
       </div>
 

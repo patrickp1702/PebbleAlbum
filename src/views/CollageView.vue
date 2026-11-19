@@ -8,7 +8,13 @@
  *              PagePanel + ImageStrip + ThemePanel) so a collage has the very same
  *              options as an album page: drag/resize/crop, filters, borders,
  *              shadows, decorations, stickers, text, layout & theme swaps,
- *              and "✎ Erase / restore parts" (mounts the shared CutoutEditor).
+ *              and "Erase / restore parts" (mounts the shared CutoutEditor).
+ *
+ * Chrome follows the album editor: a slim top bar per phase with ONE primary
+ * action (setup: "Edit collage", edit: "Download"), and in the edit phase an
+ * insert bar above the canvas with the Add actions (Photo / Text / Sticker).
+ * Text and Sticker open the matching tab of the page panel, whose active tab
+ * this view owns (`pageTab`).
  *
  * The collage is modelled as a one-page in-memory project with `autoSave:false`,
  * so the editor components work unchanged yet NOTHING is written to disk. Any album
@@ -34,7 +40,11 @@ import type { LayoutTemplate } from '@shared/layout.types';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppDropdown from '@/components/ui/AppDropdown.vue';
 import AppColorPicker from '@/components/ui/AppColorPicker.vue';
-import AppTooltip from '@/components/ui/AppTooltip.vue';
+import AppIconButton from '@/components/ui/AppIconButton.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
+import AppTabs from '@/components/ui/AppTabs.vue';
+import AppEmptyState from '@/components/ui/AppEmptyState.vue';
+import { useAddPhoto } from '@/composables/useAddPhoto';
 import AlbumCanvas from '@/components/canvas/AlbumCanvas.vue';
 import PropertiesPanel from '@/components/editor/PropertiesPanel.vue';
 import TextPropertiesPanel from '@/components/editor/TextPropertiesPanel.vue';
@@ -61,6 +71,25 @@ const collageLayouts = layouts.filter((l) => ['spread', 'creative', 'single'].in
 const layoutOptions = [{ value: 'auto', label: 'Auto (fit my photos)' }, ...collageLayouts.map((l) => ({ value: l.id, label: `${l.name} (${l.minImages}–${l.maxImages})` }))];
 const themeOptions = themes.map((t) => ({ value: t.id, label: t.name }));
 const orientationOptions = [{ value: 'landscape', label: 'Landscape' }, { value: 'portrait', label: 'Portrait' }, { value: 'square', label: 'Square' }];
+
+/** Insert bar → Photo: the ONE shared add-photo implementation (same as PagePanel's button). */
+const { adding, addPhotos } = useAddPhoto();
+/** Active tab of the page panel — owned here so the insert bar can open it. */
+const pageTab = ref<'layers' | 'layout' | 'design' | 'proverb' | 'settings'>('layers');
+/** Insert bar → Text / Sticker: leave the selection panel and show that tab. */
+function openPageTab(t: 'proverb' | 'design') {
+  editor.cropImageId = null;
+  editor.propertiesOpen = false;
+  editor.requestRender();
+  pageTab.value = t;
+}
+/** Bottom tray tabs (edit phase). */
+const TRAY_TABS = [
+  { id: 'images', label: 'Photos', icon: 'images' },
+  { id: 'themes', label: 'Themes', icon: 'palette' },
+] as const;
+/** Platform modifier glyph for the shortcut hints in tooltips. */
+const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
 const selCount = computed(() => c.selected.length);
 const src = (r: ImageRecord) => thumbs[r.relativePath] ?? '';
@@ -295,85 +324,118 @@ onBeforeUnmount(() => {
   <div class="h-full w-full flex flex-col bg-pebble-bg">
     <!-- ─────────────────────────── SETUP PHASE ─────────────────────────── -->
     <template v-if="c.phase === 'setup'">
-      <header class="h-14 shrink-0 flex items-center gap-3 px-5 border-b border-pebble-border">
-        <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-pebble-hover" @click="router.push('/')">‹ Home</button>
-        <div class="font-semibold">Collage Creator</div>
-        <span class="text-2xs text-pebble-text-dim">Pick photos → edit → download</span>
+      <header class="pa-topbar">
+        <AppIconButton icon="home" label="Back to home" @click="router.push('/')" />
+        <span class="font-semibold">Collage Creator</span>
+        <span class="text-xs text-pebble-text-dim">Step 1 of 2 · Pick photos</span>
         <div class="flex-1"></div>
-        <AppButton size="sm" variant="ghost" @click="clearCollage">Clear</AppButton>
-        <AppButton size="sm" :disabled="!selCount || building" @click="create">{{ building ? 'Building…' : `Edit collage (${selCount})` }}</AppButton>
+        <AppButton size="sm" variant="ghost" title="Discard this collage and start over" @click="clearCollage">Clear</AppButton>
+        <AppButton size="sm" icon="arrow-right" :disabled="!selCount || building"
+                   :title="selCount ? 'Open the selected photos in the collage editor' : 'Select at least one photo first'"
+                   @click="create">{{ building ? 'Building…' : `Edit collage (${selCount})` }}</AppButton>
       </header>
 
       <div class="flex-1 flex min-h-0">
         <!-- Left: controls + photo picker -->
-        <aside class="w-[420px] shrink-0 border-r border-pebble-border flex flex-col">
+        <aside class="w-[420px] shrink-0 bg-pebble-surface border-r border-pebble-border flex flex-col">
           <div class="p-4 space-y-3 border-b border-pebble-border">
-            <div class="flex items-center justify-between">
-              <div class="text-sm font-mono truncate max-w-[240px]" :title="c.folder">{{ c.folder || 'No folder selected' }}</div>
-              <AppButton size="sm" :disabled="loadingFolder" @click="pickFolder">{{ loadingFolder ? 'Scanning…' : 'Pick folder…' }}</AppButton>
+            <div class="pa-section">Source folder</div>
+            <div class="flex items-center gap-2">
+              <div class="flex-1 min-w-0 flex items-center gap-2 h-8 px-2.5 rounded-md bg-pebble-bg border border-pebble-border">
+                <AppIcon name="folder" :size="15" class="text-pebble-text-dim" />
+                <span class="text-xs font-mono truncate" :class="c.folder ? '' : 'text-pebble-text-off'" :title="c.folder">{{ c.folder || 'No folder selected' }}</span>
+              </div>
+              <AppButton variant="secondary" :disabled="loadingFolder" @click="pickFolder">{{ loadingFolder ? 'Scanning…' : 'Pick folder…' }}</AppButton>
             </div>
-            <AppDropdown label="Starting layout" :model-value="c.layoutId" :options="layoutOptions" @update:model-value="v => c.layoutId = String(v)" />
+            <div class="pa-section pt-1">Starting point</div>
+            <AppDropdown label="Layout" :model-value="c.layoutId" :options="layoutOptions" @update:model-value="v => c.layoutId = String(v)" />
             <div class="grid grid-cols-2 gap-2">
               <AppDropdown label="Theme" :model-value="c.themeId" :options="themeOptions" @update:model-value="v => c.themeId = String(v)" />
               <AppDropdown label="Shape" :model-value="c.orientation" :options="orientationOptions" @update:model-value="v => c.orientation = v as Orientation" />
             </div>
             <AppColorPicker label="Background" v-model="c.bgColor" />
-            <p class="text-2xs text-pebble-text-dim leading-relaxed">These are just a starting point — you can change the layout, theme, background, add borders, effects, stickers and text in the editor.</p>
+            <p class="pa-hint">Only a starting point — layout, theme, background, borders, effects, stickers and text can all be changed in the editor.</p>
+          </div>
+          <div v-if="c.records.length" class="px-4 pt-3 flex items-baseline justify-between">
+            <span class="pa-section">Photos</span>
+            <span class="text-xs text-pebble-text-dim tabular-nums">{{ selCount }} of {{ c.records.length }} selected</span>
           </div>
           <div class="flex-1 overflow-auto p-3">
-            <div v-if="!c.records.length" class="text-pebble-text-dim text-sm text-center mt-10">Pick a folder, then tap photos to add them to the collage.</div>
+            <div v-if="!c.records.length" class="text-pebble-text-dim text-sm text-center mt-10 px-6">Pick a folder, then click photos to add them to the collage.</div>
             <div v-else class="grid grid-cols-3 gap-2">
-              <button v-for="r in c.records" :key="r.relativePath" @click="toggle(r.relativePath)"
-                      class="relative aspect-square rounded-lg overflow-hidden ring-2 transition"
-                      :class="orderOf(r.relativePath) ? 'ring-pebble-accent' : 'ring-transparent opacity-70 hover:opacity-100'">
+              <button v-for="r in c.records" :key="r.relativePath" type="button" @click="toggle(r.relativePath)"
+                      class="relative aspect-square rounded-md overflow-hidden ring-2 transition"
+                      :class="orderOf(r.relativePath) ? 'ring-pebble-accent' : 'ring-transparent opacity-70 hover:opacity-100'"
+                      :title="r.filename">
                 <img v-if="src(r)" :src="src(r)" class="w-full h-full object-cover" />
                 <div v-else class="w-full h-full bg-pebble-surface-2 animate-pulse" />
-                <span v-if="orderOf(r.relativePath)" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-pebble-accent text-white text-2xs grid place-items-center">{{ orderOf(r.relativePath) }}</span>
+                <span v-if="orderOf(r.relativePath)" class="absolute top-1 right-1 min-w-[20px] h-5 px-1 rounded-full bg-pebble-accent text-pebble-on-accent text-2xs font-semibold grid place-items-center">{{ orderOf(r.relativePath) }}</span>
               </button>
             </div>
           </div>
         </aside>
 
         <!-- Right: hint / last result -->
-        <section class="flex-1 flex items-center justify-center p-8 overflow-auto bg-[#0d1124]">
+        <section class="flex-1 flex items-center justify-center p-8 overflow-auto">
           <img v-if="c.resultDataUrl" :src="c.resultDataUrl" class="max-w-full max-h-full object-contain shadow-2xl shadow-black/50 rounded" />
-          <div v-else class="text-pebble-text-dim text-center max-w-sm">
-            <div class="text-5xl mb-3">🖼️</div>
-            <p>Select photos and hit <b>Edit collage</b> to open the full editor — same tools as an album page.</p>
-          </div>
+          <AppEmptyState v-else icon="collage"
+                         :title="c.records.length ? 'Choose the photos for your collage' : 'Pick a folder to start'"
+                         :text="c.records.length
+                           ? 'Click photos on the left in the order you want them, then press Edit collage (top right) — the editor has the same tools as an album page.'
+                           : 'Choose a folder of photos, select a few, and arrange them into a collage you can download. Nothing is saved as a project.'">
+            <AppButton v-if="!c.records.length" size="lg" icon="folder" :disabled="loadingFolder" @click="pickFolder">{{ loadingFolder ? 'Scanning…' : 'Pick folder…' }}</AppButton>
+          </AppEmptyState>
         </section>
       </div>
     </template>
 
     <!-- ─────────────────────────── EDIT PHASE ──────────────────────────── -->
     <template v-else>
-      <header class="flex items-center gap-2 px-3 h-12 bg-pebble-surface border-b border-pebble-border text-sm">
-        <button class="text-pebble-text-dim hover:text-pebble-text px-2" @click="backToPhotos">‹ Photos</button>
+      <header class="pa-topbar">
+        <AppIconButton icon="arrow-left" label="Back to photo selection" @click="backToPhotos" />
         <span class="font-semibold">Collage</span>
-        <div class="flex items-center gap-1 ml-3">
-          <AppTooltip :text="history.undoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canUndo" @click="history.undo()">↶</button></AppTooltip>
-          <AppTooltip :text="history.redoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canRedo" @click="history.redo()">↷</button></AppTooltip>
+        <span class="text-xs text-pebble-text-dim">Step 2 of 2 · Edit</span>
+
+        <div class="flex items-center ml-3">
+          <AppIconButton icon="undo" :label="history.undoLabel || 'Undo'" :shortcut="`${MOD}Z`"
+                         :disabled="!history.canUndo" disabled-hint="Nothing to undo" @click="history.undo()" />
+          <AppIconButton icon="redo" :label="history.redoLabel || 'Redo'" :shortcut="`${MOD}Shift+Z`"
+                         :disabled="!history.canRedo" disabled-hint="Nothing to redo" @click="history.redo()" />
         </div>
-        <div class="flex items-center gap-1 ml-3">
-          <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomOut()">−</button>
-          <span class="w-12 text-center tabular-nums">{{ editor.zoomPercent }}%</span>
-          <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomIn()">＋</button>
+        <div class="w-px h-5 bg-pebble-border mx-1" />
+        <div class="flex items-center">
+          <AppIconButton icon="zoom-out" label="Zoom out" @click="editor.zoomOut()" />
+          <span class="w-12 text-center text-xs tabular-nums">{{ editor.zoomPercent }}%</span>
+          <AppIconButton icon="zoom-in" label="Zoom in" @click="editor.zoomIn()" />
+          <AppIconButton icon="maximize" label="Fit to window" :shortcut="`${MOD}0`" @click="editor.resetZoom()" />
         </div>
-        <div class="flex-1 text-center text-pebble-text-dim text-xs">Drag · resize · double-click to crop · right panel for effects, borders, decorations &amp; text</div>
-        <AppButton size="sm" variant="ghost" @click="clearCollage">Clear</AppButton>
-        <AppButton size="sm" @click="download">{{ downloading ? 'Saving…' : '⬇ Download' }}</AppButton>
+
+        <div class="flex-1" />
+        <AppButton size="sm" variant="ghost" title="Discard this collage and start over" @click="clearCollage">Clear</AppButton>
+        <AppButton size="sm" icon="download" :disabled="downloading" title="Save the collage as a PNG" @click="download">{{ downloading ? 'Saving…' : 'Download' }}</AppButton>
       </header>
 
       <div class="flex-1 flex min-h-0">
-        <!-- Center: canvas + bottom tool panel (reused) -->
+        <!-- Center: insert bar + canvas + bottom tray (reused) -->
         <section class="flex-1 flex flex-col min-w-0 relative">
+          <!-- Insert bar: the Add actions, always in the same place above the page -->
+          <div class="h-10 shrink-0 flex items-center gap-1.5 px-3 bg-pebble-surface border-b border-pebble-border">
+            <span class="pa-section mr-1">Add</span>
+            <button type="button" class="pa-btn !h-7" :disabled="adding" title="Add photos from your computer as free overlays" @click="addPhotos">
+              <AppIcon name="image-plus" :size="15" />{{ adding ? 'Adding…' : 'Photo' }}
+            </button>
+            <button type="button" class="pa-btn !h-7" title="Add text — opens the Text tab" @click="openPageTab('proverb')">
+              <AppIcon name="type" :size="15" />Text
+            </button>
+            <button type="button" class="pa-btn !h-7" title="Add stickers and patterns — opens the Design tab" @click="openPageTab('design')">
+              <AppIcon name="sticker" :size="15" />Sticker
+            </button>
+            <span class="flex-1 min-w-0 text-right pa-hint truncate">Drag to move · handles to resize · double-click a photo to crop inside its frame</span>
+          </div>
           <AlbumCanvas />
-          <div class="h-48 bg-pebble-surface border-t border-pebble-border flex flex-col">
-            <nav class="flex items-center text-xs border-b border-pebble-border">
-              <span class="px-3 text-2xs uppercase tracking-wider text-pebble-text-dim/70">Add</span>
-              <button @click="editor.bottomPanel = 'images'" :class="['px-4 py-2', editor.bottomPanel === 'images' ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim']">Photos</button>
-              <button @click="editor.bottomPanel = 'themes'" :class="['px-4 py-2', editor.bottomPanel === 'themes' ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim']">Themes</button>
-            </nav>
+          <div class="h-48 shrink-0 bg-pebble-surface border-t border-pebble-border flex flex-col">
+            <AppTabs :model-value="editor.bottomPanel === 'themes' ? 'themes' : 'images'" :tabs="TRAY_TABS"
+                     @update:model-value="v => editor.bottomPanel = v" />
             <div class="flex-1 overflow-hidden">
               <ImageStrip v-if="editor.bottomPanel === 'images'" />
               <ThemePanel v-else-if="editor.bottomPanel === 'themes'" />
@@ -382,10 +444,10 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- Right: per-object properties / page design (reused) -->
-        <aside class="w-72 shrink-0 bg-pebble-surface border-l border-pebble-border">
+        <aside class="w-[304px] shrink-0 bg-pebble-surface border-l border-pebble-border">
           <TextPropertiesPanel v-if="editor.hasSelection && editor.propertiesOpen && editor.selectedType === 'text'" />
           <PropertiesPanel v-else-if="editor.hasSelection && editor.propertiesOpen && editor.selectedType === 'image'" />
-          <PagePanel v-else />
+          <PagePanel v-else v-model:tab="pageTab" />
         </aside>
       </div>
 
