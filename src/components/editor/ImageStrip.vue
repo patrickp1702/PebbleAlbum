@@ -81,7 +81,7 @@ function onDragStart(e: DragEvent, rec: ImageRecord) {
           <div v-else class="w-full flex-1 min-h-0 bg-pebble-hover animate-pulse" />
           <div class="px-1.5 h-5 flex items-center text-2xs text-pebble-text-dim"><span class="truncate">{{ r.filename }}</span></div>
           <div v-if="r.usedOnPages.length" class="absolute top-1 left-1 px-1.5 h-[18px] inline-flex items-center rounded text-2xs font-medium bg-black/70 text-white">p{{ pageIndexOf(r) + 1 }}</div>
-          <div v-else class="absolute top-1 left-1 px-1.5 h-[18px] inline-flex items-center rounded text-2xs font-semibold bg-pebble-warning text-black">Unused</div>
+          <div v-else class="absolute top-1 left-1 px-1.5 h-[18px] inline-flex items-center rounded text-2xs font-semibold bg-pebble-warning text-pebble-on-warning">Unused</div>
         </div>
         <div v-if="!list.length" class="text-pebble-text-dim text-xs self-center px-4">
           {{ query || filter === 'unused' ? 'No images match — clear the search or switch to All.' : 'No images in this album yet.' }}

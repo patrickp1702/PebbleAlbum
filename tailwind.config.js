@@ -36,6 +36,7 @@ export default {
           // Semantic.
           success: token('success'),
           warning: token('warning'),
+          'on-warning': token('on-warning'),
           danger: token('danger'),
           'danger-fill': token('danger-fill'),
         },

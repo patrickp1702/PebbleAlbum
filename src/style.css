@@ -45,6 +45,7 @@
   /* --- Semantic ------------------------------------------------------------ */
   --ui-success: 76 194 122;       /* #4CC27A */
   --ui-warning: 240 180 74;       /* #F0B44A */
+  --ui-on-warning: 17 17 19;      /* text on a warning FILL (8.9:1) */
   --ui-danger: 255 107 99;        /* #FF6B63 text/icon */
   --ui-danger-fill: 214 59 52;    /* #D63B34 destructive button fill */
 
@@ -84,6 +85,7 @@
   --ui-accent-text: 31 90 232;
   --ui-success: 22 128 66;
   --ui-warning: 150 98 0;
+  --ui-on-warning: 255 255 255;   /* 5.0:1 on the darker light-theme amber */
   --ui-danger: 200 40 34;
   color-scheme: light;
 }
@@ -259,6 +261,10 @@ button:disabled { cursor: not-allowed; }
            border border-pebble-border bg-pebble-surface-2 font-mono text-2xs text-pebble-text-dim;
   }
 }
+
+/* Indeterminate progress: a short bar sliding across its track. */
+@keyframes pa-slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+.pa-indeterminate { animation: pa-slide 1.4s var(--ui-ease) infinite; }
 
 /* Shared route / overlay fade — short, no bounce. */
 .fade-enter-active, .fade-leave-active { transition: opacity var(--ui-dur) var(--ui-ease); }

@@ -52,7 +52,7 @@ function applyLayout(layoutId: string) {
                :class="project.pages[editor.activePageIndex]?.layoutId === l.id ? 'bg-pebble-accent' : 'bg-pebble-border-strong'"
                :style="{ left: `${s.x*100}%`, top: `${s.y*100}%`, width: `${s.w*100}%`, height: `${s.h*100}%`, boxShadow: '0 0 0 1px rgb(var(--ui-canvas))' }" />
         </div>
-        <div class="text-2xs truncate">{{ l.name }}</div>
+        <div class="text-2xs leading-tight line-clamp-2 min-h-[26px]">{{ l.name }}</div>
       </button>
     </div>
   </div>

@@ -19,7 +19,7 @@ import AppTabs from '@/components/ui/AppTabs.vue';
 import { defaultEffects, boxForFit } from '@/engine/collageComposer';
 import { BORDER_FRAMES } from '@/engine/borderFrames';
 import { FILTER_PRESETS } from '@/engine/fabricFilters';
-import { MASKS } from '@/engine/maskShapes';
+import { MASKS, maskPathData } from '@/engine/maskShapes';
 import { generatePresetThumbs } from '@/engine/presetThumbs';
 import { loadImageDataUrl } from '@/engine/imageLoader';
 import type { MaskId } from '@shared/pebble.types';
@@ -109,6 +109,16 @@ function setZoom(pct: number) {
   pi.manual = true;
   pi.position.width = w; pi.position.height = h;
   pi.position.x = fcx - w / 2; pi.position.y = fcy - h / 2;
+  live();
+}
+
+/** Double-click reset of the manual-zoom slider: back to AUTO fit (keeps the
+ *  focal point and cover zoom) — not setZoom(100), which would re-centre the
+ *  photo and leave it in manual mode. Same path as choosing a fit mode. */
+function resetManualZoom() {
+  const pi = img.value;
+  if (!pi || !pi.slotRect) return;
+  pi.manual = false;
   live();
 }
 
@@ -255,7 +265,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
       <p class="pa-hint mt-1.5">Brush parts away to blend the photo in — non-destructive, restore anytime.</p>
     </div>
 
-    <AppTabs v-model="tab" :tabs="TABS" stacked />
+    <AppTabs v-model="tab" :tabs="TABS" stacked class="px-2" />
 
     <div class="flex-1 min-h-0 overflow-auto p-3 space-y-4 text-sm">
       <!-- Move / Transform -->
@@ -276,14 +286,14 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
             </div>
           </div>
           <div class="space-y-2">
-            <div class="pa-label">Focal point <span class="text-pebble-text-off">· keeps the cell filled, no distortion</span></div>
+            <div class="pa-label">Focal point <span class="text-pebble-text-dim">· keeps the cell filled, no distortion</span></div>
             <AppSlider label="Focus horizontal" :min="0" :max="100" :reset-to="50" :model-value="focusX" unit="%" @update:model-value="v => setFocus('x', v)" />
             <AppSlider label="Focus vertical" :min="0" :max="100" :reset-to="50" :model-value="focusY" unit="%" @update:model-value="v => setFocus('y', v)" />
             <AppSlider label="Cover zoom" :min="100" :max="300" :reset-to="100" :model-value="coverZoomPct" unit="%" @update:model-value="setCoverZoom" />
             <p class="pa-hint">Drag Focus vertical down to keep a face near the top in view.</p>
           </div>
-          <AppSlider label="Manual zoom in frame" :min="0" :max="400" :reset-to="100" :model-value="frameZoom" unit="%"
-                     @update:model-value="setZoom" />
+          <AppSlider label="Manual zoom in frame" :min="0" :max="400" :reset-to="100" custom-reset :model-value="frameZoom" unit="%"
+                     @update:model-value="setZoom" @reset="resetManualZoom" />
           <button type="button" class="pa-btn w-full" :aria-pressed="editor.cropImageId === img.id"
                   :class="editor.cropImageId === img.id ? '!bg-pebble-accent !border-pebble-accent !text-pebble-on-accent' : ''"
                   @click="toggleCrop">
@@ -392,12 +402,20 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
         <section class="space-y-1.5">
           <div class="pa-section">Shape mask</div>
           <div class="grid grid-cols-5 gap-1">
-            <button type="button" @click="setMask(null)"
-                    :class="['pa-tile h-8 text-[13px] leading-none', !img.maskId ? 'is-active' : '']"
-                    title="No mask">▭</button>
-            <button v-for="m in MASKS" :key="m.id" type="button" @click="setMask(m.id)"
-                    :class="['pa-tile h-8 text-[13px] leading-none', img.maskId === m.id ? 'is-active' : '']"
-                    :title="m.label">{{ m.glyph }}</button>
+            <!-- Previews are drawn from the REAL mask geometry (maskPathData), so every
+                 tile has the same weight and shows the shape the photo will get. -->
+            <button type="button" @click="setMask(null)" aria-label="No mask"
+                    :class="['pa-tile h-9 grid place-items-center', !img.maskId ? 'is-active' : '']"
+                    title="No mask">
+              <svg width="20" height="20" viewBox="-2 -2 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="-1" y="4" width="22" height="16" /></svg>
+            </button>
+            <button v-for="m in MASKS" :key="m.id" type="button" @click="setMask(m.id)" :aria-label="m.label"
+                    :class="['pa-tile h-9 grid place-items-center', img.maskId === m.id ? 'is-active' : '']"
+                    :title="m.label">
+              <svg width="20" height="20" viewBox="-1 -4 24 24" fill="currentColor" fill-opacity="0.22" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+                <path :d="maskPathData(m.id, 22, 16)" />
+              </svg>
+            </button>
           </div>
           <p v-if="img.maskId" class="pa-hint">Borders and decorative frames trace the mask shape.</p>
         </section>
@@ -460,8 +478,8 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
           </template>
           <template v-else>
             <AppSlider label="Offset X" :min="-50" :max="50" v-model="img.shadow.offsetX" unit="px" @update:model-value="touch" />
-            <AppSlider label="Offset Y" :min="-50" :max="50" v-model="img.shadow.offsetY" unit="px" @update:model-value="touch" />
-            <AppSlider label="Blur" :min="0" :max="80" v-model="img.shadow.blur" unit="px" @update:model-value="touch" />
+            <AppSlider label="Offset Y" :min="-50" :max="50" :reset-to="8" v-model="img.shadow.offsetY" unit="px" @update:model-value="touch" />
+            <AppSlider label="Blur" :min="0" :max="80" :reset-to="24" v-model="img.shadow.blur" unit="px" @update:model-value="touch" />
             <AppColorPicker label="Colour" v-model="img.shadow.color" @update:model-value="touchNow" />
             <AppButton size="sm" variant="ghost" icon="trash" block @click="img.shadow = null; touchNow()">Remove shadow</AppButton>
           </template>

@@ -803,7 +803,7 @@ onBeforeUnmount(() => {
         <AppIconButton icon="x" label="Close" shortcut="Esc" @click="requestClose" />
       </header>
 
-      <div class="flex-1 min-h-0 overflow-auto p-3 space-y-4 text-sm">
+      <div class="flex-1 min-h-0 overflow-auto p-3 space-y-3 text-sm">
         <!-- Tool: the one choice that changes what the pointer does -->
         <section class="space-y-1.5">
           <div class="pa-section">Tool</div>
@@ -819,17 +819,26 @@ onBeforeUnmount(() => {
           <AppSlider label="Size" :min="4" :max="500" :model-value="brushSize" unit="px" @update:model-value="setBrushSize" />
           <AppSlider label="Opacity" :min="1" :max="100" v-model="brushOpacity" unit="%" />
           <AppSlider label="Hardness" :min="0" :max="100" v-model="brushHardness" unit="%" />
-          <p class="pa-hint">
-            Low opacity + soft hardness, then brush the edges/corners in passes —
-            each pass fades a little more, blending the photo into the page.
-            100% opacity erases outright; Restore paints the photo back.
-          </p>
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 pa-hint">
-            <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">[</kbd><kbd class="pa-kbd">]</kbd> size</span>
-            <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">E</kbd><kbd class="pa-kbd">R</kbd> erase / restore</span>
-            <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">Space</kbd> pan</span>
-            <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">Scroll</kbd> zoom</span>
-          </div>
+          <!-- Tips are collapsed by default so Tool, Brush, History and Apply all fit
+               without scrolling at the minimum window size. -->
+          <details class="group">
+            <summary class="pa-hint cursor-pointer select-none list-none inline-flex items-center gap-1 hover:text-pebble-text">
+              <AppIcon name="chevron-right" :size="12" class="transition-transform group-open:rotate-90" />Tips &amp; shortcuts
+            </summary>
+            <div class="mt-1.5 space-y-2">
+            <p class="pa-hint">
+              Low opacity + soft hardness, then brush the edges/corners in passes —
+              each pass fades a little more, blending the photo into the page.
+              100% opacity erases outright; Restore paints the photo back.
+            </p>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 pa-hint">
+              <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">[</kbd><kbd class="pa-kbd">]</kbd> size</span>
+              <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">E</kbd><kbd class="pa-kbd">R</kbd> erase / restore</span>
+              <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">Space</kbd> pan</span>
+              <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">Scroll</kbd> zoom</span>
+            </div>
+            </div>
+          </details>
         </section>
 
         <section class="space-y-1.5">

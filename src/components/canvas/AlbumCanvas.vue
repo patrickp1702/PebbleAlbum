@@ -764,7 +764,7 @@ onMounted(() => {
   canvas = new Canvas(el.value, {
     preserveObjectStacking: true,
     uniformScaling: true, // corner-drag keeps aspect ratio (no stretching)
-    selectionColor: 'rgba(108,99,255,0.15)',
+    selectionColor: 'rgba(43,102,246,0.15)',
     selectionBorderColor: '#2B66F6',
   });
   bindEvents();

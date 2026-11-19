@@ -132,7 +132,7 @@ function addPage() {
           <AppIcon v-else name="image" :size="20" class="animate-pulse" />
           <!-- Warning badge: images assigned to this page but not placed in the layout. -->
           <span v-if="unplacedCount(p) > 0"
-                class="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-pebble-warning text-black text-2xs font-bold flex items-center justify-center"
+                class="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-pebble-warning text-pebble-on-warning text-2xs font-bold flex items-center justify-center"
                 :title="`${unplacedCount(p)} image(s) assigned but not placed`">
             {{ unplacedCount(p) }}
           </span>

@@ -97,8 +97,11 @@ function remove() {
 
       <section class="space-y-2">
         <div class="pa-section">Spacing &amp; shape</div>
-        <AppSlider label="Letter spacing" :min="-5" :max="40" v-model="block.style.letterSpacing" @update:model-value="touch" />
-        <AppSlider label="Line height" :min="80" :max="240" :model-value="Math.round(block.style.lineHeight*100)" unit="%" @update:model-value="v => { block!.style.lineHeight = v/100; touch(); }" />
+        <!-- Reset values are the "Add text" defaults (ProverbPanel: spacing 0, line height
+             1.3, opacity 0.95). Generated titles/captions start from other values, so
+             these three do not tint as "changed". -->
+        <AppSlider label="Letter spacing" :min="-5" :max="40" :tint="false" v-model="block.style.letterSpacing" @update:model-value="touch" />
+        <AppSlider label="Line height" :min="80" :max="240" :reset-to="130" :tint="false" :model-value="Math.round(block.style.lineHeight*100)" unit="%" @update:model-value="v => { block!.style.lineHeight = v/100; touch(); }" />
         <AppSlider label="Bend" :min="-100" :max="100" :model-value="Math.round(block.style.curve ?? 0)"
                    @update:model-value="v => { block!.style.curve = v; touch(); }" />
         <p v-if="block.style.curve" class="pa-hint">Positive arcs up (smile), negative arcs down; ±100 ≈ a full circle.</p>
@@ -107,7 +110,7 @@ function remove() {
       <section class="space-y-2">
         <div class="pa-section">Rotation &amp; opacity</div>
         <AppSlider label="Rotation" :min="-180" :max="180" v-model="block.position.rotation" unit="°" @update:model-value="touch" />
-        <AppSlider label="Opacity" :min="0" :max="100" :reset-to="100" :model-value="Math.round(block.style.opacity*100)" unit="%" @update:model-value="v => { block!.style.opacity = v/100; touch(); }" />
+        <AppSlider label="Opacity" :min="0" :max="100" :reset-to="95" :tint="false" :model-value="Math.round(block.style.opacity*100)" unit="%" @update:model-value="v => { block!.style.opacity = v/100; touch(); }" />
       </section>
 
       <!-- Legibility kit (for text over busy photos) -->
