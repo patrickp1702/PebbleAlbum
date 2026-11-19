@@ -1,0 +1,11 @@
+{
+  "borders": [
+    { "id": "none",      "label": "None",      "style": "none",   "width": 0,  "color": "#ffffff", "radius": 0,  "padding": 0 },
+    { "id": "thin",      "label": "Thin",      "style": "solid",  "width": 2,  "color": "#ffffff", "radius": 0,  "padding": 0 },
+    { "id": "thick",     "label": "Thick",     "style": "solid",  "width": 10, "color": "#ffffff", "radius": 0,  "padding": 0 },
+    { "id": "double",    "label": "Double",    "style": "double", "width": 6,  "color": "#ffffff", "radius": 0,  "padding": 3 },
+    { "id": "rounded",   "label": "Rounded",   "style": "solid",  "width": 4,  "color": "#ffffff", "radius": 24, "padding": 0 },
+    { "id": "polaroid",  "label": "Polaroid",  "style": "solid",  "width": 0,  "color": "#ffffff", "radius": 2,  "padding": 14, "bottomPadding": 48 },
+    { "id": "filmstrip", "label": "Film Strip","style": "solid",  "width": 0,  "color": "#111111", "radius": 0,  "padding": 12 }
+  ]
+}

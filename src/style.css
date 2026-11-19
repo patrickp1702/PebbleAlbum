@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pa-theme-accent: #6C63FF;
+}
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #1A1A2E;
+  color: #E0E0E0;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Thin, dark scrollbars to match the pro-tool aesthetic. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a3358; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #394581; }
+
+@layer components {
+  .pa-panel { @apply bg-pebble-surface border border-pebble-border rounded-lg; }
+  .pa-input {
+    @apply bg-pebble-bg border border-pebble-border rounded px-3 py-2 text-sm text-pebble-text
+           focus:outline-none focus:ring-2 focus:ring-pebble-accent/60 transition;
+  }
+  .pa-chip {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium
+           bg-pebble-accent/15 text-pebble-accent-soft border border-pebble-accent/30;
+  }
+  .pa-code {
+    @apply block bg-pebble-bg border border-pebble-border rounded p-3 font-mono text-pebble-text;
+  }
+}
+
+/* Light mode overrides (toggled via .light on <html>). */
+.light body { background: #f4f5fb; color: #1a1a2e; }

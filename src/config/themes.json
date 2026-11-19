@@ -1,0 +1,931 @@
+[
+  {
+    "id": "elegant_rose",
+    "name": "Elegant Rose",
+    "description": "Soft pinks with flowing script and floral overlays.",
+    "colors": {
+      "background": "#fff5f7",
+      "surface": "#ffe9ef",
+      "accent": "#d6738c",
+      "overlay": "#f3c5d2",
+      "border": "#e8b8c6",
+      "text": "#5a3a44",
+      "textMuted": "#a98592"
+    },
+    "fonts": {
+      "display": "Great Vibes",
+      "body": "Playfair Display"
+    },
+    "defaultFilter": "muted",
+    "decorations": [
+      "floral_corner",
+      "watercolour_wash"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 3,
+      "color": "#ffffff",
+      "radius": 6,
+      "padding": 4
+    },
+    "stickers": [
+      "\ud83c\udf38",
+      "\ud83c\udf39",
+      "\ud83d\udc97",
+      "\ud83e\udd8b",
+      "\u2728"
+    ],
+    "proverbCategory": "Love",
+    "background": {
+      "type": "gradient",
+      "from": "#fff5f7",
+      "to": "#ffe1ea",
+      "angle": 135
+    }
+  },
+  {
+    "id": "classic_black",
+    "name": "Classic Black",
+    "description": "Black, white and gold with crisp geometric borders.",
+    "colors": {
+      "background": "#0e0e0e",
+      "surface": "#1a1a1a",
+      "accent": "#c8a24a",
+      "overlay": "#3a3a3a",
+      "border": "#2a2a2a",
+      "text": "#f2f2f2",
+      "textMuted": "#9a9a9a"
+    },
+    "fonts": {
+      "display": "Bodoni Moda",
+      "body": "Montserrat"
+    },
+    "defaultFilter": "bw",
+    "decorations": [
+      "geometric_grid"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 2,
+      "color": "#c8a24a",
+      "radius": 0,
+      "padding": 0
+    },
+    "stickers": [
+      "\u2726",
+      "\u25c6",
+      "\u2666",
+      "\u2736",
+      "\u2756"
+    ],
+    "proverbCategory": "Life",
+    "background": {
+      "type": "solid"
+    }
+  },
+  {
+    "id": "vintage_sepia",
+    "name": "Vintage Sepia",
+    "description": "Warm sepia tones with torn-edge overlays.",
+    "colors": {
+      "background": "#f1e7d6",
+      "surface": "#e7d8c0",
+      "accent": "#9c6b3f",
+      "overlay": "#d8c2a0",
+      "border": "#cbb089",
+      "text": "#4a3520",
+      "textMuted": "#8a7252"
+    },
+    "fonts": {
+      "display": "Cormorant Garamond",
+      "body": "Lato"
+    },
+    "defaultFilter": "sepia",
+    "decorations": [
+      "torn_edge"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 4,
+      "color": "#f1e7d6",
+      "radius": 0,
+      "padding": 3
+    },
+    "stickers": [
+      "\ud83c\udf42",
+      "\ud83d\udd70\ufe0f",
+      "\u2709\ufe0f",
+      "\ud83c\udf3e",
+      "\ud83d\udcf7"
+    ],
+    "proverbCategory": "Family",
+    "background": {
+      "type": "pattern",
+      "pattern": "film_grain",
+      "base": "#f1e7d6"
+    }
+  },
+  {
+    "id": "modern_minimal",
+    "name": "Modern Minimal",
+    "description": "White space, hairline borders, no patterns.",
+    "colors": {
+      "background": "#ffffff",
+      "surface": "#f5f5f5",
+      "accent": "#222222",
+      "overlay": "#e5e5e5",
+      "border": "#e0e0e0",
+      "text": "#1a1a1a",
+      "textMuted": "#888888"
+    },
+    "fonts": {
+      "display": "Inter",
+      "body": "Inter"
+    },
+    "defaultFilter": "none",
+    "decorations": [],
+    "border": {
+      "style": "solid",
+      "width": 1,
+      "color": "#1a1a1a",
+      "radius": 0,
+      "padding": 0
+    },
+    "stickers": [
+      "\u2022",
+      "\u2014",
+      "\u25cb",
+      "\u25e6",
+      "\uff0f"
+    ],
+    "proverbCategory": "Life",
+    "background": {
+      "type": "solid"
+    }
+  },
+  {
+    "id": "festive_gold",
+    "name": "Festive Gold",
+    "description": "Deep navy and gold with star and confetti overlays.",
+    "colors": {
+      "background": "#0c1330",
+      "surface": "#141d44",
+      "accent": "#e8c25a",
+      "overlay": "#2a3566",
+      "border": "#22305e",
+      "text": "#f5f1e0",
+      "textMuted": "#a9b2cf"
+    },
+    "fonts": {
+      "display": "Cinzel",
+      "body": "Raleway"
+    },
+    "defaultFilter": "vivid",
+    "decorations": [
+      "stars_scatter",
+      "confetti"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 3,
+      "color": "#e8c25a",
+      "radius": 0,
+      "padding": 0
+    },
+    "stickers": [
+      "\u2b50",
+      "\u2728",
+      "\ud83c\udf89",
+      "\ud83e\udd42",
+      "\ud83c\udf8a"
+    ],
+    "proverbCategory": "Achievement",
+    "background": {
+      "type": "gradient",
+      "from": "#0c1330",
+      "to": "#1a2550",
+      "angle": 120
+    }
+  },
+  {
+    "id": "nature_green",
+    "name": "Nature Green",
+    "description": "Forest greens and cream with leaf overlays.",
+    "colors": {
+      "background": "#f3f6ee",
+      "surface": "#e6efdb",
+      "accent": "#4a7c45",
+      "overlay": "#c9dcb6",
+      "border": "#bcd0a6",
+      "text": "#243d22",
+      "textMuted": "#6f8a66"
+    },
+    "fonts": {
+      "display": "Abril Fatface",
+      "body": "Source Serif Pro"
+    },
+    "defaultFilter": "muted",
+    "decorations": [
+      "leaves_corner"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 4,
+      "color": "#ffffff",
+      "radius": 8,
+      "padding": 4
+    },
+    "stickers": [
+      "\ud83c\udf43",
+      "\ud83c\udf3f",
+      "\ud83c\udf31",
+      "\ud83e\udd8b",
+      "\ud83c\udf38"
+    ],
+    "proverbCategory": "Nature",
+    "background": {
+      "type": "pattern",
+      "pattern": "dot_pattern",
+      "base": "#f3f6ee"
+    }
+  },
+  {
+    "id": "royal_blue",
+    "name": "Royal Blue",
+    "description": "Deep royal blue and silver with regal borders.",
+    "colors": {
+      "background": "#0a1633",
+      "surface": "#11214a",
+      "accent": "#b9c2d9",
+      "overlay": "#1d2f5c",
+      "border": "#26396a",
+      "text": "#eef1f8",
+      "textMuted": "#9aa6c4"
+    },
+    "fonts": {
+      "display": "Cormorant Garamond",
+      "body": "Nunito"
+    },
+    "defaultFilter": "cool",
+    "decorations": [
+      "geometric_grid"
+    ],
+    "border": {
+      "style": "double",
+      "width": 6,
+      "color": "#b9c2d9",
+      "radius": 0,
+      "padding": 3
+    },
+    "stickers": [
+      "\u265b",
+      "\u2726",
+      "\u2756",
+      "\u2666",
+      "\u2736"
+    ],
+    "proverbCategory": "Achievement",
+    "background": {
+      "type": "gradient",
+      "from": "#0a1633",
+      "to": "#16285a",
+      "angle": 135
+    }
+  },
+  {
+    "id": "warm_autumn",
+    "name": "Warm Autumn",
+    "description": "Amber, terracotta and rust with bokeh overlays.",
+    "colors": {
+      "background": "#f7ede0",
+      "surface": "#efd9c2",
+      "accent": "#c4622d",
+      "overlay": "#e6c39c",
+      "border": "#dcb491",
+      "text": "#52301a",
+      "textMuted": "#8f6a4c"
+    },
+    "fonts": {
+      "display": "Josefin Sans",
+      "body": "Merriweather"
+    },
+    "defaultFilter": "warm",
+    "decorations": [
+      "bokeh_circles"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 3,
+      "color": "#ffffff",
+      "radius": 4,
+      "padding": 3
+    },
+    "stickers": [
+      "\ud83c\udf41",
+      "\ud83c\udf42",
+      "\ud83c\udf3b",
+      "\u2615",
+      "\ud83c\udf30"
+    ],
+    "proverbCategory": "Family",
+    "background": {
+      "type": "gradient",
+      "from": "#f7ede0",
+      "to": "#f0d8bf",
+      "angle": 120
+    }
+  },
+  {
+    "id": "pastel_dream",
+    "name": "Pastel Dream",
+    "description": "Soft pastels with watercolour washes.",
+    "colors": {
+      "background": "#fbf7ff",
+      "surface": "#f2ecfb",
+      "accent": "#b39ddb",
+      "overlay": "#e3d6f5",
+      "border": "#dccaef",
+      "text": "#4b3a63",
+      "textMuted": "#9b8bb5"
+    },
+    "fonts": {
+      "display": "Pacifico",
+      "body": "Quicksand"
+    },
+    "defaultFilter": "faded",
+    "decorations": [
+      "watercolour_wash",
+      "dot_pattern"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 3,
+      "color": "#ffffff",
+      "radius": 16,
+      "padding": 4
+    },
+    "stickers": [
+      "\ud83c\udf37",
+      "\u2601\ufe0f",
+      "\ud83d\udc9c",
+      "\ud83c\udf80",
+      "\u2728"
+    ],
+    "proverbCategory": "Childhood",
+    "background": {
+      "type": "gradient",
+      "from": "#fbf7ff",
+      "to": "#efe6fb",
+      "angle": 150
+    }
+  },
+  {
+    "id": "dark_cinematic",
+    "name": "Dark Cinematic",
+    "description": "Near-black with electric blue and film grain.",
+    "colors": {
+      "background": "#070709",
+      "surface": "#101216",
+      "accent": "#3da9fc",
+      "overlay": "#1a2230",
+      "border": "#1c2430",
+      "text": "#eef2f6",
+      "textMuted": "#8b97a3"
+    },
+    "fonts": {
+      "display": "Bebas Neue",
+      "body": "Roboto"
+    },
+    "defaultFilter": "dramatic",
+    "decorations": [
+      "film_grain",
+      "light_leak"
+    ],
+    "border": {
+      "style": "none",
+      "width": 0,
+      "color": "#3da9fc",
+      "radius": 0,
+      "padding": 0
+    },
+    "duotone": {
+      "highlight": "#3da9fc",
+      "shadow": "#070709"
+    },
+    "stickers": [
+      "\ud83c\udfac",
+      "\u2726",
+      "\u2605",
+      "\u25c6",
+      "\u26a1"
+    ],
+    "proverbCategory": "Life",
+    "background": {
+      "type": "gradient",
+      "from": "#070709",
+      "to": "#10141c",
+      "angle": 115
+    }
+  },
+  {
+    "id": "wedding_ivory",
+    "name": "Wedding Ivory",
+    "description": "Ivory, champagne and rose gold with lace overlays.",
+    "colors": {
+      "background": "#fbf7f0",
+      "surface": "#f3ebdd",
+      "accent": "#b08d57",
+      "overlay": "#ecdcc6",
+      "border": "#e3d2b8",
+      "text": "#5a4a36",
+      "textMuted": "#a08e74"
+    },
+    "fonts": {
+      "display": "Allura",
+      "body": "EB Garamond"
+    },
+    "defaultFilter": "muted",
+    "decorations": [
+      "lace_border",
+      "floral_corner"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 3,
+      "color": "#ffffff",
+      "radius": 6,
+      "padding": 5
+    },
+    "stickers": [
+      "\ud83d\udc8d",
+      "\ud83e\udd0d",
+      "\ud83d\udd4a\ufe0f",
+      "\ud83c\udf3f",
+      "\ud83d\udc90"
+    ],
+    "proverbCategory": "Wedding",
+    "background": {
+      "type": "solid"
+    }
+  },
+  {
+    "id": "birthday_vibrant",
+    "name": "Birthday Vibrant",
+    "description": "Bright multicolour on white with confetti and balloons.",
+    "colors": {
+      "background": "#ffffff",
+      "surface": "#fff4fb",
+      "accent": "#ff4da6",
+      "overlay": "#ffd23f",
+      "border": "#ffd0e8",
+      "text": "#3a2a36",
+      "textMuted": "#9a8893"
+    },
+    "fonts": {
+      "display": "Fredoka One",
+      "body": "Poppins"
+    },
+    "defaultFilter": "vivid",
+    "decorations": [
+      "stars_scatter"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 5,
+      "color": "#ffffff",
+      "radius": 12,
+      "padding": 4
+    },
+    "stickers": [
+      "\ud83c\udf88",
+      "\ud83c\udf82",
+      "\ud83c\udf89",
+      "\ud83c\udf8a",
+      "\u2b50"
+    ],
+    "proverbCategory": "Childhood",
+    "background": {
+      "type": "pattern",
+      "pattern": "confetti",
+      "base": "#ffffff"
+    }
+  },
+  {
+    "id": "graduation_navy",
+    "name": "Graduation Navy",
+    "description": "Navy, gold and white with academic borders.",
+    "colors": {
+      "background": "#0f1d3a",
+      "surface": "#16294d",
+      "accent": "#d9b85a",
+      "overlay": "#23375f",
+      "border": "#2b3f66",
+      "text": "#f1f4fa",
+      "textMuted": "#9aa8c2"
+    },
+    "fonts": {
+      "display": "Libre Baskerville",
+      "body": "Open Sans"
+    },
+    "defaultFilter": "cool",
+    "decorations": [
+      "geometric_grid"
+    ],
+    "border": {
+      "style": "double",
+      "width": 5,
+      "color": "#d9b85a",
+      "radius": 0,
+      "padding": 3
+    },
+    "stickers": [
+      "\ud83c\udf93",
+      "\ud83d\udcdc",
+      "\u2b50",
+      "\u2726",
+      "\ud83c\udfc5"
+    ],
+    "proverbCategory": "Achievement",
+    "background": {
+      "type": "gradient",
+      "from": "#0f1d3a",
+      "to": "#1c3055",
+      "angle": 135
+    }
+  },
+  {
+    "id": "travel_adventure",
+    "name": "Travel Adventure",
+    "description": "Earthy tones and teal with compass and map decorations.",
+    "colors": {
+      "background": "#f0ece1",
+      "surface": "#e2dac8",
+      "accent": "#1f8a8a",
+      "overlay": "#cfc3a6",
+      "border": "#c4b896",
+      "text": "#2e3b3b",
+      "textMuted": "#6f7a6a"
+    },
+    "fonts": {
+      "display": "Oswald",
+      "body": "Cabin"
+    },
+    "defaultFilter": "warm",
+    "decorations": [
+      "compass_rose",
+      "torn_edge"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 3,
+      "color": "#f0ece1",
+      "radius": 0,
+      "padding": 3
+    },
+    "stickers": [
+      "\ud83e\udded",
+      "\u2708\ufe0f",
+      "\ud83d\uddfa\ufe0f",
+      "\u26f0\ufe0f",
+      "\ud83c\udf0a"
+    ],
+    "proverbCategory": "Nature",
+    "background": {
+      "type": "pattern",
+      "pattern": "geometric_grid",
+      "base": "#f0ece1"
+    }
+  },
+  {
+    "id": "family_warmth",
+    "name": "Family Warmth",
+    "description": "Warm oranges and brown with heart overlays.",
+    "colors": {
+      "background": "#fbf1e6",
+      "surface": "#f3ddc4",
+      "accent": "#d2772f",
+      "overlay": "#f0c79c",
+      "border": "#e6b88a",
+      "text": "#4e3320",
+      "textMuted": "#917158"
+    },
+    "fonts": {
+      "display": "Courgette",
+      "body": "Nunito"
+    },
+    "defaultFilter": "warm",
+    "decorations": [
+      "hearts_scatter"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 4,
+      "color": "#ffffff",
+      "radius": 10,
+      "padding": 4
+    },
+    "stickers": [
+      "\u2764\ufe0f",
+      "\ud83c\udfe1",
+      "\ud83e\udd17",
+      "\ud83c\udf3b",
+      "\u2600\ufe0f"
+    ],
+    "proverbCategory": "Family",
+    "background": {
+      "type": "gradient",
+      "from": "#fbf1e6",
+      "to": "#f5ddc6",
+      "angle": 130
+    }
+  },
+  {
+    "id": "classic_editorial",
+    "name": "Classic Editorial",
+    "description": "Magazine-style ivory with hairline rules and refined serif type.",
+    "colors": {
+      "background": "#f7f4ee",
+      "surface": "#efe9dd",
+      "accent": "#1c1c1c",
+      "overlay": "#d9d2c4",
+      "border": "#cfc7b6",
+      "text": "#1a1a1a",
+      "textMuted": "#7a7468"
+    },
+    "fonts": {
+      "display": "Bodoni Moda",
+      "body": "EB Garamond"
+    },
+    "defaultFilter": "none",
+    "decorations": [
+      "torn_edge"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 1,
+      "color": "#1a1a1a",
+      "radius": 0,
+      "padding": 0
+    },
+    "stickers": [
+      "\u2014",
+      "\u2022",
+      "\u00a7",
+      "\u2726"
+    ],
+    "proverbCategory": "Life",
+    "background": {
+      "type": "solid"
+    }
+  },
+  {
+    "id": "industrial_slate",
+    "name": "Industrial Slate",
+    "description": "Concrete greys, bold condensed type and a technical grid.",
+    "colors": {
+      "background": "#23262b",
+      "surface": "#2c3037",
+      "accent": "#e0653a",
+      "overlay": "#3a3f48",
+      "border": "#3a3f48",
+      "text": "#eceff3",
+      "textMuted": "#9aa1ab"
+    },
+    "fonts": {
+      "display": "Bebas Neue",
+      "body": "Oswald"
+    },
+    "defaultFilter": "dramatic",
+    "decorations": [
+      "geometric_grid"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 2,
+      "color": "#e0653a",
+      "radius": 0,
+      "padding": 0
+    },
+    "stickers": [
+      "\u25b2",
+      "\u25a0",
+      "\u25cf",
+      "\u2715"
+    ],
+    "proverbCategory": "Achievement",
+    "background": {
+      "type": "gradient",
+      "from": "#23262b",
+      "to": "#2f343c",
+      "angle": 120
+    }
+  },
+  {
+    "id": "blueprint",
+    "name": "Blueprint",
+    "description": "Drafting-table navy with a fine blueprint grid and mono labels.",
+    "colors": {
+      "background": "#0e2a47",
+      "surface": "#123356",
+      "accent": "#7fd1ff",
+      "overlay": "#1c4877",
+      "border": "#1c4877",
+      "text": "#eaf4ff",
+      "textMuted": "#9fc2e0"
+    },
+    "fonts": {
+      "display": "Oswald",
+      "body": "Cabin"
+    },
+    "defaultFilter": "cool",
+    "decorations": [
+      "geometric_grid"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 1,
+      "color": "#7fd1ff",
+      "radius": 0,
+      "padding": 0
+    },
+    "stickers": [
+      "\u271b",
+      "\u25f7",
+      "\u25b3",
+      "\u25a2"
+    ],
+    "proverbCategory": "Nature",
+    "background": {
+      "type": "pattern",
+      "pattern": "geometric_grid",
+      "base": "#0e2a47"
+    }
+  },
+  {
+    "id": "kraft_craft",
+    "name": "Kraft & Craft",
+    "description": "Warm kraft-paper texture with handwritten accents \u2014 scrapbook feel.",
+    "colors": {
+      "background": "#cdb38b",
+      "surface": "#c2a578",
+      "accent": "#7a4a23",
+      "overlay": "#b89668",
+      "border": "#a98b5e",
+      "text": "#3c2c1a",
+      "textMuted": "#6e5a40"
+    },
+    "fonts": {
+      "display": "Courgette",
+      "body": "Nunito"
+    },
+    "defaultFilter": "warm",
+    "decorations": [
+      "dot_pattern",
+      "torn_edge"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 0,
+      "color": "#ffffff",
+      "radius": 2,
+      "padding": 12
+    },
+    "stickers": [
+      "\u2736",
+      "\u2740",
+      "\u263c",
+      "\u2704"
+    ],
+    "proverbCategory": "Family",
+    "background": {
+      "type": "pattern",
+      "pattern": "dot_pattern",
+      "base": "#cdb38b"
+    }
+  },
+  {
+    "id": "noir_gallery",
+    "name": "Noir Gallery",
+    "description": "Gallery-black with a single accent \u2014 pure, high-contrast presentation.",
+    "colors": {
+      "background": "#0c0c0d",
+      "surface": "#161618",
+      "accent": "#c9a227",
+      "overlay": "#262629",
+      "border": "#262629",
+      "text": "#f3f3f3",
+      "textMuted": "#8d8d92"
+    },
+    "fonts": {
+      "display": "Cinzel",
+      "body": "Montserrat"
+    },
+    "defaultFilter": "bw",
+    "decorations": [],
+    "border": {
+      "style": "solid",
+      "width": 1,
+      "color": "#c9a227",
+      "radius": 0,
+      "padding": 0
+    },
+    "stickers": [
+      "\u2726",
+      "\u25c6",
+      "|",
+      "\u2014"
+    ],
+    "proverbCategory": "Life",
+    "background": {
+      "type": "gradient",
+      "from": "#0c0c0d",
+      "to": "#1a1a1d",
+      "angle": 135
+    }
+  },
+  {
+    "id": "first_birthday",
+    "name": "First Birthday",
+    "description": "Soft pastel mint and peach with a gentle script — sweet, not loud.",
+    "colors": {
+      "background": "#fff9f4",
+      "surface": "#fdeee6",
+      "accent": "#f4a6b8",
+      "overlay": "#bfe3d4",
+      "border": "#f3ddd0",
+      "text": "#5a4a48",
+      "textMuted": "#a99490"
+    },
+    "fonts": {
+      "display": "Courgette",
+      "body": "Quicksand"
+    },
+    "defaultFilter": "warm",
+    "decorations": [
+      "hearts_scatter"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 6,
+      "color": "#ffffff",
+      "radius": 14,
+      "padding": 4
+    },
+    "stickers": [
+      "🎈",
+      "⭐",
+      "☁️",
+      "💛",
+      "🌸"
+    ],
+    "proverbCategory": "Childhood",
+    "background": {
+      "type": "gradient",
+      "from": "#fff9f4",
+      "to": "#fbe9e0",
+      "angle": 135
+    }
+  },
+  {
+    "id": "kids_primary",
+    "name": "Kids Primary",
+    "description": "Bright, balanced primary colours on white — playful without going hot-pink.",
+    "colors": {
+      "background": "#ffffff",
+      "surface": "#eef6ff",
+      "accent": "#3aa0ff",
+      "overlay": "#ffcf3f",
+      "border": "#d4e8ff",
+      "text": "#23303a",
+      "textMuted": "#8a98a4"
+    },
+    "fonts": {
+      "display": "Fredoka One",
+      "body": "Nunito"
+    },
+    "defaultFilter": "vivid",
+    "decorations": [
+      "polka_large"
+    ],
+    "border": {
+      "style": "solid",
+      "width": 6,
+      "color": "#ffffff",
+      "radius": 10,
+      "padding": 4
+    },
+    "stickers": [
+      "🎈",
+      "⭐",
+      "🌈",
+      "☀️",
+      "👑"
+    ],
+    "proverbCategory": "Childhood",
+    "background": {
+      "type": "pattern",
+      "pattern": "polka_large",
+      "base": "#ffffff"
+    }
+  }
+]

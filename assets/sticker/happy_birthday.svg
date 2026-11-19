@@ -1,0 +1,6 @@
+<svg width="224" height="64" viewBox="0 0 224 64" xmlns="http://www.w3.org/2000/svg">
+  <path d="M14 10 H210 L198 32 L210 54 H14 L26 32z" fill="#e23a6e" stroke="#a8003f" stroke-width="2"/>
+  <path d="M0 16 L16 16 L10 32 L16 48 L0 48z" fill="#b01852"/>
+  <path d="M224 16 L208 16 L214 32 L208 48 L224 48z" fill="#b01852"/>
+  <text x="112" y="40" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-style="italic" font-weight="700" fill="#fff">Happy Birthday</text>
+</svg>

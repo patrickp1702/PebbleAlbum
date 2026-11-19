@@ -1,0 +1,5 @@
+<svg width="100" height="40" viewBox="0 0 100 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M8 6 H92 L86 20 L92 34 H8 L14 20z" fill="{{C}}" opacity="0.9"/>
+  <path d="M0 12 L10 12 L6 20 L10 28 L0 28z" fill="{{C}}" opacity="0.6"/>
+  <path d="M100 12 L90 12 L94 20 L90 28 L100 28z" fill="{{C}}" opacity="0.6"/>
+</svg>

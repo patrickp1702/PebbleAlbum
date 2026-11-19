@@ -1,0 +1,16 @@
+node_modules/
+out/
+release/
+dist/
+*.log
+.DS_Store
+.pebble_cache/
+
+# Local / editor / tool state (never published)
+.idea/
+.claude/
+.pebble_masks/
+Screenshot*.png
+# Stale bundler temp configs
+electron.vite.config.*.mjs
+*.timestamp-*.mjs
