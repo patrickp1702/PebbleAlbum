@@ -3,6 +3,7 @@
 import { useProjectStore } from '@/stores/projectStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { THEMES, injectThemeVars, resolveTheme } from '@/engine/themeEngine';
+import AppIcon from '@/components/ui/AppIcon.vue';
 
 const project = useProjectStore();
 const editor = useEditorStore();
@@ -16,11 +17,17 @@ function pick(id: string) {
 </script>
 
 <template>
-  <div class="grid grid-cols-5 gap-3 p-3 overflow-auto">
-    <button v-for="t in THEMES" :key="t.id" @click="pick(t.id)"
-            :class="['rounded overflow-hidden border-2 text-left', project.meta?.theme === t.id ? 'border-pebble-accent' : 'border-pebble-border']">
-      <div class="h-12 flex items-center justify-center text-sm" :style="{ background: t.colors.background, color: t.colors.accent, fontFamily: t.fonts.display }">Aa</div>
-      <div class="px-2 py-1 text-2xs bg-pebble-surface truncate">{{ t.name }}</div>
-    </button>
+  <div class="h-full overflow-auto p-3">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2.5">
+      <button v-for="t in THEMES" :key="t.id" type="button" @click="pick(t.id)" :aria-pressed="project.meta?.theme === t.id"
+              :class="['pa-tile overflow-hidden text-left', project.meta?.theme === t.id ? 'is-active' : '']">
+        <!-- Swatch uses the ALBUM theme's own colours/fonts (user content, not app chrome). -->
+        <div class="h-14 flex items-center justify-center text-lg" :style="{ background: t.colors.background, color: t.colors.accent, fontFamily: t.fonts.display }">Aa</div>
+        <div class="px-2 h-7 flex items-center gap-1 text-2xs">
+          <AppIcon v-if="project.meta?.theme === t.id" name="check" :size="12" class="text-pebble-accent-soft" />
+          <span class="truncate">{{ t.name }}</span>
+        </div>
+      </button>
+    </div>
   </div>
 </template>

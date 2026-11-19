@@ -9,6 +9,11 @@
  *     page as a FREE overlay photo (move / resize / rotate / erase). Undoable.
  * (The old right-side "All images" browser was removed; use the bottom Images tab.)
  *
+ * The header says what you are looking at, the tabs (icon + label) say what you
+ * can do with it. `tab` (optional v-model): the host view may own the active tab
+ * so its insert bar can open "Text" / "Design" directly and the tab survives a
+ * trip through the selection panels; without it the panel keeps its own state.
+ *
  * `variant` (optional, default 'album'): 'photo' is the Pixart photo editor,
  * whose page IS one photo — it hides the album-only controls that would break
  * that model (Layout tab: re-slotting the base photo into a template; the
@@ -22,9 +27,12 @@ import { useAddPhoto } from '@/composables/useAddPhoto';
 import { getLayout } from '@/engine/layoutSelector';
 import type { PageImage, ImageRecord } from '@shared/pebble.types';
 import AppColorPicker from '@/components/ui/AppColorPicker.vue';
-import AppButton from '@/components/ui/AppButton.vue';
 import AppDropdown from '@/components/ui/AppDropdown.vue';
 import AppSlider from '@/components/ui/AppSlider.vue';
+import AppTabs from '@/components/ui/AppTabs.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
+import AppTooltip from '@/components/ui/AppTooltip.vue';
+import type { IconName } from '@/components/ui/icons';
 import { PATTERNS } from '@/engine/decoEngine';
 import LayoutPicker from '@/components/editor/LayoutPicker.vue';
 import DecorationPanel from '@/components/editor/DecorationPanel.vue';
@@ -34,17 +42,23 @@ const project = useProjectStore();
 const editor = useEditorStore();
 const page = computed(() => project.pages[editor.activePageIndex]);
 
-const props = withDefaults(defineProps<{ variant?: 'album' | 'photo' }>(), { variant: 'album' });
+type PageTab = 'layers' | 'layout' | 'design' | 'proverb' | 'settings';
+const props = withDefaults(defineProps<{ variant?: 'album' | 'photo'; tab?: PageTab }>(), { variant: 'album' });
+const emit = defineEmits<{ (e: 'update:tab', v: PageTab): void }>();
 const isAlbum = computed(() => props.variant === 'album');
 
-type PageTab = 'layers' | 'layout' | 'design' | 'proverb' | 'settings';
-const tab = ref<PageTab>('layers');
-const ALL_TABS: { id: PageTab; label: string }[] = [
-  { id: 'layers', label: 'Layers' },
-  { id: 'layout', label: 'Layout' },
-  { id: 'design', label: 'Design' },
-  { id: 'proverb', label: 'Proverb' },
-  { id: 'settings', label: 'Page' },
+/** Active tab: host-owned when `tab` is bound (v-model:tab), else local. */
+const localTab = ref<PageTab>('layers');
+const tab = computed<PageTab>({
+  get: () => props.tab ?? localTab.value,
+  set: (v) => { localTab.value = v; emit('update:tab', v); },
+});
+const ALL_TABS: { id: PageTab; label: string; icon: IconName }[] = [
+  { id: 'layers', label: 'Layers', icon: 'layers' },
+  { id: 'layout', label: 'Layout', icon: 'layout' },
+  { id: 'design', label: 'Design', icon: 'palette' },
+  { id: 'proverb', label: 'Text', icon: 'type' },
+  { id: 'settings', label: 'Page', icon: 'page' },
 ];
 const tabs = computed(() => (isAlbum.value ? ALL_TABS : ALL_TABS.filter((t) => t.id !== 'layout')));
 
@@ -164,54 +178,62 @@ const { adding, addPhotos } = useAddPhoto();
 
 <template>
   <div v-if="page" class="flex flex-col h-full">
-    <div class="px-3 py-2 border-b border-pebble-border">
+    <!-- What you are looking at -->
+    <div class="px-3 h-12 flex flex-col justify-center border-b border-pebble-border shrink-0">
       <template v-if="isAlbum">
-        <div class="text-xs text-pebble-text-dim">Page {{ editor.activePageIndex + 1 }} of {{ project.pages.length }}</div>
-        <div class="text-sm capitalize">{{ page.type.replace('_', ' ') }} · {{ placedTopFirst.length }} photos</div>
+        <div class="text-sm font-semibold capitalize truncate">Page {{ editor.activePageIndex + 1 }} · {{ page.type.replace('_', ' ') }}</div>
+        <div class="text-2xs text-pebble-text-dim">{{ placedTopFirst.length }} photo{{ placedTopFirst.length === 1 ? '' : 's' }} · page {{ editor.activePageIndex + 1 }} of {{ project.pages.length }}</div>
       </template>
       <template v-else>
-        <div class="text-xs text-pebble-text-dim">Photo</div>
-        <div class="text-sm">{{ placedTopFirst.length }} layer{{ placedTopFirst.length === 1 ? '' : 's' }}</div>
+        <div class="text-sm font-semibold">Photo</div>
+        <div class="text-2xs text-pebble-text-dim">{{ placedTopFirst.length }} layer{{ placedTopFirst.length === 1 ? '' : 's' }}</div>
       </template>
     </div>
 
-    <!-- Per-page editing tabs -->
-    <nav class="flex text-2xs border-b border-pebble-border">
-      <button v-for="t in tabs" :key="t.id" @click="tab = t.id"
-              :class="['flex-1 py-2', tab === t.id ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim hover:text-pebble-text']">
-        {{ t.label }}
-      </button>
-    </nav>
+    <!-- Per-page editing tabs (icon + label) -->
+    <AppTabs v-model="tab" :tabs="tabs" stacked />
 
     <div class="flex-1 overflow-auto text-sm">
       <!-- LAYERS -->
-      <div v-if="tab === 'layers'" class="p-3 space-y-4">
-        <AppButton block :disabled="adding || page.locked" :title="page.locked ? 'Page is locked' : 'Add photos from your computer as free overlays'" @click="addPhotos">
-          {{ adding ? 'Adding…' : '＋ Add photo' }}
-        </AppButton>
+      <div v-if="tab === 'layers'" class="p-3 space-y-5">
         <div>
-          <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-1">Layers (top → bottom)</div>
-          <p class="text-2xs text-pebble-text-dim mb-1">Click to highlight on the page · drag to reorder · ✎ to edit.</p>
-          <div class="space-y-1">
+          <div class="flex items-center justify-between mb-2">
+            <div class="pa-section">Layers</div>
+            <button type="button" class="pa-btn !h-7 !px-2" :disabled="adding || page.locked"
+                    :title="page.locked ? 'Page is locked — unlock it to add photos' : 'Add photos from your computer as free overlays'"
+                    @click="addPhotos">
+              <AppIcon name="plus" :size="14" />{{ adding ? 'Adding…' : 'Add photo' }}
+            </button>
+          </div>
+          <div class="space-y-0.5">
             <div v-for="(pi, i) in placedTopFirst" :key="pi.id"
                  draggable="true"
                  @dragstart="dragIndex = i" @dragover.prevent="overIndex = i" @drop="dropReorder(i)" @dragend="dragIndex = null; overIndex = null"
-                 class="flex items-center gap-2 rounded bg-pebble-bg p-1 cursor-pointer hover:bg-pebble-hover transition"
-                 :class="[editor.selectedObjectId === pi.id ? 'ring-1 ring-pebble-accent' : '', overIndex === i && dragIndex !== null ? 'ring-2 ring-pebble-accent/70' : '']"
+                 class="group flex items-center gap-2 h-10 pl-1 pr-1 rounded-md border-l-2 cursor-pointer transition-colors"
+                 :class="[editor.selectedObjectId === pi.id ? 'bg-pebble-accent/15 border-pebble-accent' : 'border-transparent hover:bg-pebble-hover',
+                          overIndex === i && dragIndex !== null ? 'ring-1 ring-pebble-accent' : '']"
                  @click="editor.requestSelect(pi.id, false)">
-              <span class="text-pebble-text-dim/60 text-xs cursor-grab active:cursor-grabbing" title="Drag to reorder">⠿</span>
-              <img v-if="src(pi)" :src="src(pi)" class="h-9 w-9 rounded object-cover pointer-events-none" />
-              <div v-else class="h-9 w-9 rounded bg-pebble-surface-2 animate-pulse" />
-              <span class="flex-1 truncate text-2xs">{{ pi.filename }}</span>
-              <button class="px-1.5 py-1 rounded text-pebble-text-dim hover:text-pebble-accent hover:bg-pebble-hover" title="Edit photo" @click.stop="editor.requestSelect(pi.id, true)">✎</button>
+              <span class="text-pebble-text-off cursor-grab active:cursor-grabbing" title="Drag to reorder"><AppIcon name="grip" :size="14" :stroke="2.5" /></span>
+              <img v-if="src(pi)" :src="src(pi)" class="h-8 w-8 rounded object-cover pointer-events-none" />
+              <div v-else class="h-8 w-8 rounded bg-pebble-surface-2 animate-pulse" />
+              <span class="flex-1 truncate text-xs">{{ pi.filename }}</span>
+              <AppTooltip text="Edit photo">
+                <button type="button" class="pa-iconbtn !h-7 !w-7" aria-label="Edit photo" @click.stop="editor.requestSelect(pi.id, true)">
+                  <AppIcon name="pencil" :size="14" />
+                </button>
+              </AppTooltip>
             </div>
-            <div v-if="!placedTopFirst.length" class="text-2xs text-pebble-text-dim">No photos placed.</div>
+            <div v-if="!placedTopFirst.length" class="rounded-md border border-dashed border-pebble-border px-3 py-4 text-center pa-hint">
+              No photos on this {{ isAlbum ? 'page' : 'canvas' }} yet. Use <b class="text-pebble-text">Add photo</b>{{ isAlbum ? ', or drag one up from the Images tray' : '' }}.
+            </div>
           </div>
+          <p v-if="placedTopFirst.length" class="pa-hint mt-2">Top of the list is in front. Click to highlight, drag to reorder.</p>
         </div>
         <div v-if="notPlaced.length">
-          <div class="text-2xs uppercase tracking-wider text-pebble-warning/80 mb-1">Not placed ({{ notPlaced.length }}) — click to add</div>
+          <div class="pa-section !text-pebble-warning mb-1">Not placed ({{ notPlaced.length }})</div>
+          <p class="pa-hint mb-2">Assigned to this page but not in the layout. Click one to place it.</p>
           <div class="grid grid-cols-4 gap-1.5">
-            <button v-for="pi in notPlaced" :key="pi.id" class="relative rounded overflow-hidden aspect-square ring-1 ring-pebble-warning/40" @click="placeExisting(pi)" :title="pi.filename">
+            <button v-for="pi in notPlaced" :key="pi.id" class="relative rounded overflow-hidden aspect-square ring-1 ring-pebble-warning/50 hover:ring-2 hover:ring-pebble-warning transition-shadow" @click="placeExisting(pi)" :title="pi.filename">
               <img v-if="src(pi)" :src="src(pi)" class="w-full h-full object-cover opacity-80" />
               <div v-else class="w-full h-full bg-pebble-surface-2 animate-pulse" />
             </button>
@@ -225,38 +247,43 @@ const { adding, addPhotos } = useAddPhoto();
       <!-- DESIGN: patterns + stickers (per-page) -->
       <DecorationPanel v-else-if="tab === 'design'" />
 
-      <!-- PROVERB (per-page) -->
+      <!-- TEXT: proverbs / text blocks (per-page) -->
       <ProverbPanel v-else-if="tab === 'proverb'" />
 
       <!-- PAGE SETTINGS -->
-      <div v-else class="p-3 space-y-3">
-        <AppColorPicker label="Background" :model-value="page.backgroundColor || '#ffffff'" @update:model-value="setBg" />
-        <label class="flex items-center justify-between text-xs py-0.5">
-          <span>Gradient background</span>
-          <input type="checkbox" :checked="!!page.backgroundGradient" @change="toggleBgGradient(($event.target as HTMLInputElement).checked)" />
-        </label>
-        <template v-if="page.backgroundGradient">
-          <AppColorPicker label="From" :model-value="page.backgroundGradient.from" @update:model-value="v => setBgGradient('from', v)" />
-          <AppColorPicker label="To" :model-value="page.backgroundGradient.to" @update:model-value="v => setBgGradient('to', v)" />
-          <AppSlider label="Angle" :min="0" :max="360" :model-value="page.backgroundGradient.angle" unit="°" @update:model-value="v => setBgGradient('angle', v)" />
-        </template>
-        <AppDropdown label="Texture" :model-value="page.backgroundPattern || ''" :options="TEXTURE_PATTERNS" @update:model-value="setBgPattern" />
-        <div>
-          <div class="text-xs text-pebble-text-dim mb-1">Fit all photos</div>
+      <div v-else class="p-3 space-y-5">
+        <section class="space-y-2.5">
+          <div class="pa-section">Background</div>
+          <AppColorPicker label="Colour" :model-value="page.backgroundColor || '#ffffff'" @update:model-value="setBg" />
+          <label class="flex items-center justify-between text-xs h-7 cursor-pointer">
+            <span>Gradient background</span>
+            <input type="checkbox" :checked="!!page.backgroundGradient" @change="toggleBgGradient(($event.target as HTMLInputElement).checked)" />
+          </label>
+          <template v-if="page.backgroundGradient">
+            <AppColorPicker label="From" :model-value="page.backgroundGradient.from" @update:model-value="v => setBgGradient('from', v)" />
+            <AppColorPicker label="To" :model-value="page.backgroundGradient.to" @update:model-value="v => setBgGradient('to', v)" />
+            <AppSlider label="Angle" :min="0" :max="360" :model-value="page.backgroundGradient.angle" unit="°" @update:model-value="v => setBgGradient('angle', v)" />
+          </template>
+          <AppDropdown label="Texture" :model-value="page.backgroundPattern || ''" :options="TEXTURE_PATTERNS" @update:model-value="setBgPattern" />
+        </section>
+        <section class="space-y-2">
+          <div class="pa-section">Photos</div>
+          <div class="pa-label">Fit all photos to their frames</div>
           <div class="flex gap-2">
-            <AppButton size="sm" variant="secondary" @click="fitAll('cover')">Cover</AppButton>
-            <AppButton size="sm" variant="secondary" @click="fitAll('contain')">Contain</AppButton>
+            <button type="button" class="pa-btn flex-1" title="Crop every photo to fill its frame" @click="fitAll('cover')">Fill frames</button>
+            <button type="button" class="pa-btn flex-1" title="Show every photo whole inside its frame" @click="fitAll('contain')">Fit whole</button>
           </div>
-        </div>
-        <div v-if="isAlbum" class="pt-2 border-t border-pebble-border space-y-2">
-          <div class="text-2xs uppercase tracking-wider text-pebble-text-dim">Slideshow</div>
-          <label class="text-xs block">This page stays on screen (seconds)
+        </section>
+        <section v-if="isAlbum" class="space-y-2.5">
+          <div class="pa-section">Slideshow</div>
+          <label class="block">
+            <span class="pa-label">This page stays on screen (seconds)</span>
             <div class="flex items-center gap-2 mt-1">
-              <input type="number" min="1" max="60" step="0.5" class="pa-input w-24 py-1"
+              <input type="number" min="1" max="60" step="0.5" class="pa-input w-24 h-8 !py-0"
                      :value="page.durationSec ?? ''" :placeholder="String(project.meta?.slideshowInterval ?? 4)"
                      @input="setPageDuration(($event.target as HTMLInputElement).value)" />
-              <button v-if="page.durationSec" class="text-2xs text-pebble-text-dim hover:text-pebble-text underline"
-                      @click="setPageDuration('')">use default ({{ project.meta?.slideshowInterval ?? 4 }}s)</button>
+              <button v-if="page.durationSec" type="button" class="text-2xs text-pebble-accent-soft hover:underline"
+                      @click="setPageDuration('')">Use default ({{ project.meta?.slideshowInterval ?? 4 }}s)</button>
             </div>
           </label>
           <AppDropdown label="Turn style" :model-value="project.meta?.pageTurnStyle || 'curl'"
@@ -265,8 +292,8 @@ const { adding, addPhotos } = useAddPhoto();
           <AppDropdown label="Speed" :model-value="project.meta?.pageTurnSpeed || 'normal'"
             :options="[{value:'slow',label:'Slow'},{value:'normal',label:'Normal'},{value:'fast',label:'Fast'}]"
             @update:model-value="v => { if (project.meta) { project.meta.pageTurnSpeed = v as any; project.markDirty(); } }" />
-        </div>
-        <p v-if="isAlbum" class="text-2xs text-pebble-text-dim">Tip: right-click a page in the left strip for Duplicate / Lock / Delete.</p>
+        </section>
+        <p v-if="isAlbum" class="pa-hint">Tip: right-click a page in the left strip for Duplicate, Lock or Delete.</p>
       </div>
     </div>
   </div>

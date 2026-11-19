@@ -2,10 +2,14 @@
 /**
  * AlbumEditorView.vue
  * -----------------------------------------------------------------------------
- * The main editor: top toolbar, left PageStrip, center canvas (Fabric editor or
- * Three.js preview), right context panel (Properties / Image Bin), and a bottom
- * tool panel (Layouts / Themes / Decorations / Proverbs / Pages). Implements the
- * core keyboard shortcuts and the save/export actions.
+ * The main editor. Layout (the convention shared by layout/photo tools):
+ *   top bar     project name · undo/redo · zoom · utilities · ONE primary (Export)
+ *   left        PageStrip (structure)
+ *   centre      insert bar (Add photo / text / sticker + page stepper) above the
+ *               Fabric canvas; album-wide tray below (Images / Themes)
+ *   right       context panel: the selection's properties, else the page panel
+ *   overlay     fullscreen slideshow preview (Three.js)
+ * Implements the core keyboard shortcuts and the save/export actions.
  */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
@@ -22,13 +26,16 @@ import ThemePanel from '@/components/editor/ThemePanel.vue';
 import ImageStrip from '@/components/editor/ImageStrip.vue';
 import PagePanel from '@/components/editor/PagePanel.vue';
 import AppButton from '@/components/ui/AppButton.vue';
-import AppTooltip from '@/components/ui/AppTooltip.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
+import AppIconButton from '@/components/ui/AppIconButton.vue';
+import AppTabs from '@/components/ui/AppTabs.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import AiConnectModal from '@/components/editor/AiConnectModal.vue';
 import PhotoSelectionView from '@/components/editor/PhotoSelectionView.vue';
 import CutoutEditor from '@/components/editor/CutoutEditor.vue';
 import { SlideshowPlaylist, recordSlideshow, cancelRecording, slideshowTotalSec, pageDuration, type RecordProgress, type SceneHandle } from '@/engine/slideshowMedia';
 import type { MusicTrack } from '@shared/ipc.types';
+import { useAddPhoto } from '@/composables/useAddPhoto';
 
 const router = useRouter();
 const project = useProjectStore();
@@ -165,7 +172,29 @@ async function downloadVideo() {
 }
 
 const pageLabel = computed(() => `Page ${editor.activePageIndex + 1} of ${project.pages.length}`);
-const bottomPanels = ['images', 'themes'] as const;
+const BOTTOM_TABS = [
+  { id: 'images', label: 'Images', icon: 'images' },
+  { id: 'themes', label: 'Themes', icon: 'palette' },
+] as const;
+
+// --- Insert bar (above the canvas) -------------------------------------------
+/** Add photo: the ONE shared implementation (also used by PagePanel / Pixart). */
+const { adding, addPhotos } = useAddPhoto();
+const activePage = computed(() => project.pages[editor.activePageIndex]);
+/** The page panel's active tab is owned here so the insert bar can open one. */
+const pageTab = ref<'layers' | 'layout' | 'design' | 'proverb' | 'settings'>('layers');
+/** Show the page panel on `tab` (leaves any selection panel, like its Back button). */
+function openPageTab(tab: 'design' | 'proverb') {
+  editor.cropImageId = null;
+  editor.propertiesOpen = false;
+  editor.requestRender();
+  pageTab.value = tab;
+}
+/** Page stepper — the same navigation as the ← / → keys. */
+function stepPage(d: 1 | -1) {
+  const n = editor.activePageIndex + d;
+  if (n >= 0 && n < project.pages.length) editor.setPage(n);
+}
 
 const stats = computed(() => {
   const pages = project.pages;
@@ -264,35 +293,40 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
 
 <template>
   <div class="h-full flex flex-col select-none">
-    <!-- Top bar -->
-    <header class="flex items-center gap-2 px-3 h-12 bg-pebble-surface border-b border-pebble-border text-sm">
-      <button class="text-pebble-text-dim hover:text-pebble-text" @click="router.push('/')">☰</button>
-      <span class="font-semibold">PebbleAlbum</span>
-      <span class="text-pebble-text-dim mx-2">·</span>
-      <span class="text-pebble-text-dim truncate max-w-[12rem]">{{ project.meta?.name }}</span>
-
-      <div class="flex items-center gap-1 ml-4">
-        <AppTooltip :text="history.undoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canUndo" @click="history.undo()">↶</button></AppTooltip>
-        <AppTooltip :text="history.redoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canRedo" @click="history.redo()">↷</button></AppTooltip>
+    <!-- Top bar: where am I · history · view · utilities · the ONE primary action -->
+    <header class="pa-topbar">
+      <AppIconButton icon="home" label="Back to home" @click="router.push('/')" />
+      <div class="flex items-baseline gap-2 min-w-0 ml-1">
+        <span class="font-semibold truncate max-w-[14rem]" :title="project.meta?.name">{{ project.meta?.name }}</span>
+        <span class="text-xs shrink-0" :class="project.saveState === 'saved' ? 'text-pebble-success' : project.dirty && project.saveState !== 'saving' ? 'text-pebble-warning' : 'text-pebble-text-dim'">
+          {{ project.saveState === 'saving' ? 'Saving…' : project.saveState === 'saved' ? 'Saved' : project.dirty ? 'Unsaved' : '' }}
+        </span>
       </div>
 
-      <div class="flex items-center gap-1 ml-4">
-        <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomOut()">−</button>
-        <span class="w-12 text-center tabular-nums">{{ editor.zoomPercent }}%</span>
-        <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomIn()">＋</button>
+      <div class="w-px h-5 bg-pebble-border mx-1.5" />
+      <div class="flex items-center">
+        <AppIconButton icon="undo" :label="history.undoLabel || 'Undo'" shortcut="⌘Z" :disabled="!history.canUndo" disabled-hint="Nothing to undo" @click="history.undo()" />
+        <AppIconButton icon="redo" :label="history.redoLabel || 'Redo'" shortcut="⇧⌘Z" :disabled="!history.canRedo" disabled-hint="Nothing to redo" @click="history.redo()" />
       </div>
 
-      <div class="flex-1 text-center text-pebble-text-dim">{{ pageLabel }}</div>
+      <div class="w-px h-5 bg-pebble-border mx-1.5" />
+      <div class="flex items-center">
+        <AppIconButton icon="zoom-out" label="Zoom out" @click="editor.zoomOut()" />
+        <span class="w-11 text-center text-xs tabular-nums text-pebble-text" title="Zoom">{{ editor.zoomPercent }}%</span>
+        <AppIconButton icon="zoom-in" label="Zoom in" @click="editor.zoomIn()" />
+        <AppIconButton icon="maximize" label="Fit page to window" shortcut="⌘0" @click="editor.resetZoom()" />
+      </div>
 
-      <span class="text-xs mr-2" :class="project.saveState === 'saved' ? 'text-pebble-success' : 'text-pebble-text-dim'">
-        {{ project.saveState === 'saving' ? 'Saving…' : project.saveState === 'saved' ? 'Saved' : project.dirty ? 'Unsaved' : '' }}
-      </span>
-      <AppButton size="sm" variant="ghost" @click="showStats = true">📊</AppButton>
-      <AppButton size="sm" variant="ghost" @click="previewMode = !previewMode">{{ previewMode ? 'Edit' : '▶ Preview' }}</AppButton>
-      <AppButton size="sm" variant="secondary" @click="showSelect = true">🖼 Select images</AppButton>
-      <AppButton size="sm" variant="secondary" @click="showAi = true">🤖 Connect AI</AppButton>
-      <AppButton size="sm" variant="secondary" @click="saveAndAnnounce">Save</AppButton>
-      <AppButton size="sm" @click="router.push('/export')">Export</AppButton>
+      <div class="flex-1" />
+
+      <AppIconButton icon="chart" label="Album statistics" @click="showStats = true" />
+      <AppIconButton icon="keyboard" label="Keyboard shortcuts" shortcut="?" @click="showShortcuts = true" />
+      <div class="w-px h-5 bg-pebble-border mx-1.5" />
+      <AppButton size="md" variant="ghost" icon="images" title="Choose which photos from the folder are used in the album" @click="showSelect = true"><span class="hidden xl:inline">Select images</span></AppButton>
+      <AppButton size="md" variant="ghost" icon="bot" title="Let an AI agent edit this album through the built-in MCP server" @click="showAi = true"><span class="hidden xl:inline">Connect AI</span></AppButton>
+      <AppButton size="md" variant="secondary" icon="play" title="Fullscreen slideshow preview" @click="previewMode = !previewMode">{{ previewMode ? 'Edit' : 'Preview' }}</AppButton>
+      <AppButton size="md" variant="secondary" icon="save" title="Save (⌘S)" @click="saveAndAnnounce">Save</AppButton>
+      <AppButton size="md" icon="upload" title="Export the album as PDF or images" @click="router.push('/export')">Export</AppButton>
     </header>
 
     <!-- Body -->
@@ -301,17 +335,38 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
 
       <!-- Center -->
       <section class="flex-1 flex flex-col min-w-0 relative">
+        <!-- Insert bar: everything you can ADD to the page, plus the page stepper -->
+        <div class="h-10 shrink-0 flex items-center gap-1.5 px-2 bg-pebble-surface border-b border-pebble-border">
+          <span class="pa-section mr-1 hidden lg:inline">Add</span>
+          <button type="button" class="pa-btn !h-7" :disabled="adding || !!activePage?.locked"
+                  :title="activePage?.locked ? 'Page is locked — unlock it (right-click the page) to add photos' : 'Add photos from your computer on top of this page'"
+                  @click="addPhotos">
+            <AppIcon name="image-plus" :size="15" />{{ adding ? 'Adding…' : 'Photo' }}
+          </button>
+          <button type="button" class="pa-btn !h-7" title="Add text or a proverb — opens the Text tab" @click="openPageTab('proverb')">
+            <AppIcon name="type" :size="15" />Text
+          </button>
+          <button type="button" class="pa-btn !h-7" title="Add a sticker or pattern — opens the Design tab" @click="openPageTab('design')">
+            <AppIcon name="sticker" :size="15" />Sticker
+          </button>
+          <div class="flex-1" />
+          <AppIconButton size="sm" icon="chevron-left" label="Previous page" shortcut="←" :disabled="editor.activePageIndex <= 0" @click="stepPage(-1)" />
+          <span class="text-xs text-pebble-text-dim tabular-nums whitespace-nowrap">{{ pageLabel }}</span>
+          <AppIconButton size="sm" icon="chevron-right" label="Next page" shortcut="→" :disabled="editor.activePageIndex >= project.pages.length - 1" @click="stepPage(1)" />
+        </div>
+
         <AlbumCanvas />
 
-        <!-- Bottom tool panel -->
-        <div class="h-48 bg-pebble-surface border-t border-pebble-border flex flex-col">
-          <nav class="flex items-center text-xs border-b border-pebble-border">
-            <span class="px-3 text-2xs uppercase tracking-wider text-pebble-text-dim/70">Album</span>
-            <button v-for="p in bottomPanels" :key="p" @click="editor.bottomPanel = p"
-                    :class="['px-4 py-2 capitalize', editor.bottomPanel === p ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim']">{{ p }}</button>
-            <button class="ml-auto mr-3 px-3 py-1 rounded bg-pebble-accent/20 text-pebble-accent-soft hover:bg-pebble-accent/30"
-                    title="Re-flow every page with smart layouts" @click="regenerateAlbum">✨ Re-generate album</button>
-          </nav>
+        <!-- Album-wide tray -->
+        <div class="h-48 shrink-0 bg-pebble-surface border-t border-pebble-border flex flex-col">
+          <div class="flex items-center border-b border-pebble-border shrink-0">
+            <span class="pa-section pl-3 pr-1">Album</span>
+            <AppTabs :model-value="editor.bottomPanel ?? 'images'" :tabs="BOTTOM_TABS" class="!border-b-0" @update:model-value="(v) => (editor.bottomPanel = v as typeof editor.bottomPanel)" />
+            <button type="button" class="pa-btn !h-7 ml-auto mr-2"
+                    title="Re-flow every page with smart layouts (asks first)" @click="regenerateAlbum">
+              <AppIcon name="sparkles" :size="14" />Re-generate album
+            </button>
+          </div>
           <div class="flex-1 overflow-hidden">
             <ImageStrip v-if="editor.bottomPanel === 'images'" />
             <ThemePanel v-else-if="editor.bottomPanel === 'themes'" />
@@ -319,11 +374,11 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
         </div>
       </section>
 
-      <!-- Right panel -->
-      <aside class="w-72 shrink-0 bg-pebble-surface border-l border-pebble-border">
+      <!-- Right panel: the selection's properties, else the page -->
+      <aside class="w-[304px] shrink-0 bg-pebble-surface border-l border-pebble-border">
         <TextPropertiesPanel v-if="editor.hasSelection && editor.propertiesOpen && editor.selectedType === 'text'" />
         <PropertiesPanel v-else-if="editor.hasSelection && editor.propertiesOpen && editor.selectedType === 'image'" />
-        <PagePanel v-else />
+        <PagePanel v-else v-model:tab="pageTab" />
       </aside>
     </div>
 
@@ -331,96 +386,104 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
     <div v-if="previewMode" class="fixed inset-0 z-[80] bg-black flex flex-col">
       <PageTurnScene ref="turnScene" class="flex-1 min-h-0" :page-index="editor.activePageIndex"
                      :ken-burns="kenBurns" @page-changed="editor.setPage($event)" />
-      <button class="absolute top-4 right-4 px-3 py-1.5 rounded-full bg-white/10 text-white text-sm hover:bg-white/20" @click="previewMode = false">✕ Exit preview</button>
-      <button class="absolute inset-y-0 left-0 flex items-center px-4 text-white/70 hover:text-white text-4xl" @click="turnScene?.prev()">‹</button>
-      <button class="absolute inset-y-0 right-0 flex items-center px-4 text-white/70 hover:text-white text-4xl" @click="turnScene?.next()">›</button>
+      <button type="button" class="absolute top-4 right-4 h-8 pl-2 pr-3 inline-flex items-center gap-1.5 rounded-md bg-pebble-surface-2/90 border border-pebble-border-strong/50 text-pebble-text text-xs font-medium hover:bg-pebble-hover"
+              title="Exit preview (Esc)" @click="previewMode = false"><AppIcon name="x" :size="15" />Exit preview</button>
+      <button type="button" class="absolute inset-y-0 left-0 flex items-center px-3 text-white/60 hover:text-white transition-colors" title="Previous page (←)" aria-label="Previous page" @click="turnScene?.prev()"><AppIcon name="chevron-left" :size="36" /></button>
+      <button type="button" class="absolute inset-y-0 right-0 flex items-center px-3 text-white/60 hover:text-white transition-colors" title="Next page (→)" aria-label="Next page" @click="turnScene?.next()"><AppIcon name="chevron-right" :size="36" /></button>
 
       <!-- Slideshow control bar -->
-      <div class="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2 rounded-full bg-white/10 backdrop-blur text-white text-sm">
-        <button class="hover:text-pebble-accent-soft" :title="autoplay ? 'Pause' : 'Play'" @click="autoplay = !autoplay">{{ autoplay ? '❚❚' : '▶' }}</button>
-        <span class="tabular-nums">{{ editor.activePageIndex + 1 }} / {{ project.pages.length }}</span>
-        <label class="flex items-center gap-1 text-xs text-white/70">
-          <span>every</span>
-          <select v-model.number="intervalSec" class="bg-black/40 rounded px-1 py-0.5" title="Default seconds per page (pages can override in Page settings)">
+      <div class="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-3 pl-2 pr-3 h-12 rounded-xl bg-pebble-surface-2/90 border border-pebble-border-strong/50 shadow-pop text-pebble-text text-xs whitespace-nowrap">
+        <button type="button" class="h-8 w-8 grid place-items-center rounded-md bg-pebble-accent text-pebble-on-accent hover:bg-pebble-accent-hover"
+                :title="autoplay ? 'Pause' : 'Play'" :aria-label="autoplay ? 'Pause' : 'Play'" @click="autoplay = !autoplay"><AppIcon :name="autoplay ? 'pause' : 'play'" :size="15" /></button>
+        <span class="tabular-nums text-sm">{{ editor.activePageIndex + 1 }} / {{ project.pages.length }}</span>
+        <div class="w-px h-5 bg-pebble-border" />
+        <label class="flex items-center gap-1.5 text-pebble-text-dim">
+          <span>Every</span>
+          <select v-model.number="intervalSec" class="pa-input h-7 !py-0 !px-1.5 text-xs" title="Default seconds per page (pages can override in Page settings)">
             <option :value="2">2s</option><option :value="3">3s</option><option :value="4">4s</option><option :value="6">6s</option><option :value="8">8s</option>
           </select>
         </label>
-        <label class="flex items-center gap-1 text-xs text-white/70">
-          <span>turn</span>
-          <select v-model="turnStyle" class="bg-black/40 rounded px-1 py-0.5" title="Page transition style">
+        <label class="flex items-center gap-1.5 text-pebble-text-dim">
+          <span>Turn</span>
+          <select v-model="turnStyle" class="pa-input h-7 !py-0 !px-1.5 text-xs" title="Page transition style">
             <option v-for="s in TURN_STYLES" :key="s.id" :value="s.id">{{ s.label }}</option>
           </select>
         </label>
-        <button class="text-xs px-2 py-0.5 rounded-full"
-                :class="selectedMusic.length ? 'bg-pebble-accent/40 text-white' : 'bg-black/30 text-white/70 hover:text-white'"
+        <button type="button" class="pa-btn !h-7" :class="selectedMusic.length ? '!border-pebble-accent !text-pebble-accent-soft' : ''"
                 title="Slideshow music" @click="showMusic = true; loadMusicList()">
-          ♪ Music{{ selectedMusic.length ? ` (${selectedMusic.length})` : '' }}
+          <AppIcon name="music" :size="14" />Music{{ selectedMusic.length ? ` (${selectedMusic.length})` : '' }}
         </button>
-        <label class="flex items-center gap-1 text-xs text-white/70"><input type="checkbox" v-model="loopShow" /> Loop</label>
-        <label class="flex items-center gap-1 text-xs text-white/70"><input type="checkbox" v-model="kenBurns" /> Ken Burns</label>
-        <button class="text-xs px-2 py-0.5 rounded-full bg-black/30 text-white/80 hover:text-white" title="Download the slideshow as a video with music"
-                :disabled="!!recording" @click="downloadVideo">⬇ Save video</button>
+        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" v-model="loopShow" /> Loop</label>
+        <label class="flex items-center gap-1.5 cursor-pointer" title="Slow zoom on each page"><input type="checkbox" v-model="kenBurns" /> Ken Burns</label>
+        <div class="w-px h-5 bg-pebble-border" />
+        <button type="button" class="pa-btn !h-7" title="Download the slideshow as a video with music"
+                :disabled="!!recording" @click="downloadVideo"><AppIcon name="download" :size="14" />Save video</button>
       </div>
 
       <!-- Music picker -->
       <div v-if="showMusic" class="absolute inset-0 z-[85] bg-black/60 flex items-center justify-center" @click.self="showMusic = false">
-        <div class="w-[26rem] max-h-[70vh] overflow-auto rounded-xl bg-pebble-surface border border-pebble-border p-4 space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="text-sm font-medium">♪ Slideshow music</div>
-            <button class="h-7 px-2 rounded bg-pebble-surface-2 border border-pebble-border text-xs" @click="showMusic = false">✕</button>
+        <div class="w-[26rem] max-h-[70vh] flex flex-col rounded-2xl bg-pebble-surface border border-pebble-border shadow-modal">
+          <div class="flex items-center justify-between pl-4 pr-2 h-12 border-b border-pebble-border shrink-0">
+            <div class="flex items-center gap-2 text-base font-semibold"><AppIcon name="music" :size="17" class="text-pebble-text-dim" />Slideshow music</div>
+            <button type="button" class="pa-iconbtn" aria-label="Close" title="Close" @click="showMusic = false"><AppIcon name="x" /></button>
           </div>
-          <p class="text-2xs text-pebble-text-dim">Pick one or more tracks — they play in order and loop back to the first when the show is longer than the music. Plays with ▶ and in the exported video.</p>
-          <div v-if="!musicTracks.length" class="text-xs text-pebble-text-dim py-2">No tracks found.</div>
-          <button v-for="t in musicTracks" :key="t.path" @click="toggleTrack(t.path)"
-                  class="w-full flex items-center gap-2 px-2 py-1.5 rounded border text-left text-sm"
-                  :class="selectedMusic.includes(t.path) ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50'">
-            <span class="w-5 text-center text-xs tabular-nums text-pebble-accent">{{ selectedMusic.indexOf(t.path) >= 0 ? selectedMusic.indexOf(t.path) + 1 : '' }}</span>
-            <span class="flex-1 truncate">{{ t.name }}</span>
-            <span class="text-2xs text-pebble-text-dim">{{ t.source === 'bundled' ? 'built-in' : 'my library' }}</span>
-          </button>
-          <AppButton size="sm" variant="secondary" block @click="addMusicFiles">＋ Add music from computer…</AppButton>
+          <div class="p-4 space-y-2 overflow-auto">
+            <p class="pa-hint">Pick one or more tracks — they play in order and loop back to the first when the show is longer than the music. Plays with Play and in the exported video.</p>
+            <div v-if="!musicTracks.length" class="text-xs text-pebble-text-dim py-2">No tracks found. Add music from your computer below.</div>
+            <button v-for="t in musicTracks" :key="t.path" type="button" @click="toggleTrack(t.path)" :aria-pressed="selectedMusic.includes(t.path)"
+                    :class="['pa-tile w-full flex items-center gap-2 px-2 h-9 text-left text-sm', selectedMusic.includes(t.path) ? 'is-active' : '']">
+              <span class="w-5 h-5 grid place-items-center rounded text-2xs font-semibold tabular-nums"
+                    :class="selectedMusic.includes(t.path) ? 'bg-pebble-accent text-pebble-on-accent' : 'border border-pebble-border-strong'">{{ selectedMusic.indexOf(t.path) >= 0 ? selectedMusic.indexOf(t.path) + 1 : '' }}</span>
+              <span class="flex-1 truncate">{{ t.name }}</span>
+              <span class="text-2xs text-pebble-text-dim">{{ t.source === 'bundled' ? 'Built-in' : 'My library' }}</span>
+            </button>
+            <AppButton size="md" variant="secondary" icon="plus" block @click="addMusicFiles">Add music from computer…</AppButton>
+          </div>
         </div>
       </div>
 
       <!-- Recording overlay -->
-      <div v-if="recording" class="absolute inset-0 z-[86] bg-black/70 flex flex-col items-center justify-center gap-3 text-white">
-        <div class="text-lg">🎬 Recording slideshow video…</div>
+      <div v-if="recording" class="absolute inset-0 z-[86] bg-black/75 flex flex-col items-center justify-center gap-3 text-white">
+        <div class="flex items-center gap-2 text-lg font-semibold"><AppIcon name="film" :size="20" />Recording slideshow video…</div>
         <div class="text-sm text-white/80 tabular-nums">Page {{ recording.page }} / {{ recording.total }} · ~{{ Math.round(recording.totalSec) }}s total</div>
-        <div class="w-72 h-2 rounded-full bg-white/15 overflow-hidden">
-          <div class="h-full bg-pebble-accent transition-all" :style="{ width: `${Math.min(100, (recording.sec / Math.max(1, recording.totalSec)) * 100)}%` }" />
+        <div class="w-72 h-1.5 rounded-full bg-white/15 overflow-hidden">
+          <div class="h-full rounded-full bg-pebble-accent transition-all" :style="{ width: `${Math.min(100, (recording.sec / Math.max(1, recording.totalSec)) * 100)}%` }" />
         </div>
-        <p class="text-2xs text-white/60 max-w-sm text-center">The video records the show in real time — exactly what you see, with your music. Keep this window visible.</p>
-        <AppButton size="sm" variant="ghost" @click="cancelRecording()">Cancel</AppButton>
+        <p class="text-xs text-white/70 max-w-sm text-center">The video records the show in real time — exactly what you see, with your music. Keep this window visible.</p>
+        <AppButton size="md" variant="secondary" @click="cancelRecording()">Cancel</AppButton>
       </div>
     </div>
 
-    <!-- Erase / restore studio (PicsArt-style, non-destructive mask) -->
+    <!-- Erase / restore studio (non-destructive mask) -->
     <CutoutEditor v-if="editor.cutoutRequest" :filename="editor.cutoutRequest.filename"
                   :image-id="editor.cutoutRequest.imageId" @close="editor.closeCutout()" />
 
-    <!-- Shortcuts modal -->
     <AiConnectModal v-model:open="showAi" />
     <PhotoSelectionView v-if="project.meta" :open="showSelect" :folder="project.meta.sourceFolder" :records="project.images"
                         :preselect-skipped="currentSkipped" @update:open="showSelect = $event" @apply="applySelection" />
 
-    <AppModal v-model:open="showShortcuts" title="Keyboard shortcuts">
-      <ul class="text-sm space-y-1">
-        <li><b>Ctrl/⌘ Z</b> — Undo · <b>Shift+Z</b> / <b>Y</b> — Redo</li>
-        <li><b>Ctrl/⌘ S</b> — Save</li>
-        <li><b>← / →</b> — Previous / next page</li>
-        <li><b>Delete</b> — Remove selected</li>
-        <li><b>Ctrl/⌘ 0</b> — Fit · <b>Ctrl/⌘ 1</b> — 100%</li>
-        <li><b>?</b> — This panel</li>
-      </ul>
+    <!-- Shortcuts modal -->
+    <AppModal v-model:open="showShortcuts" title="Keyboard shortcuts" width="480px">
+      <dl class="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2.5 text-sm items-center">
+        <dt>Undo</dt><dd class="flex gap-1 justify-end"><kbd class="pa-kbd">Ctrl/⌘</kbd><kbd class="pa-kbd">Z</kbd></dd>
+        <dt>Redo</dt><dd class="flex gap-1 justify-end items-center"><kbd class="pa-kbd">Ctrl/⌘</kbd><kbd class="pa-kbd">Shift</kbd><kbd class="pa-kbd">Z</kbd><span class="text-pebble-text-dim text-xs px-0.5">or</span><kbd class="pa-kbd">Ctrl/⌘</kbd><kbd class="pa-kbd">Y</kbd></dd>
+        <dt>Save</dt><dd class="flex gap-1 justify-end"><kbd class="pa-kbd">Ctrl/⌘</kbd><kbd class="pa-kbd">S</kbd></dd>
+        <dt>Previous / next page</dt><dd class="flex gap-1 justify-end"><kbd class="pa-kbd">←</kbd><kbd class="pa-kbd">→</kbd></dd>
+        <dt>Remove selected</dt><dd class="flex gap-1 justify-end"><kbd class="pa-kbd">Delete</kbd></dd>
+        <dt>Deselect / exit preview</dt><dd class="flex gap-1 justify-end"><kbd class="pa-kbd">Esc</kbd></dd>
+        <dt>Fit page to window</dt><dd class="flex gap-1 justify-end"><kbd class="pa-kbd">Ctrl/⌘</kbd><kbd class="pa-kbd">0</kbd></dd>
+        <dt>Zoom to 100%</dt><dd class="flex gap-1 justify-end"><kbd class="pa-kbd">Ctrl/⌘</kbd><kbd class="pa-kbd">1</kbd></dd>
+        <dt>Show this panel</dt><dd class="flex gap-1 justify-end"><kbd class="pa-kbd">?</kbd></dd>
+      </dl>
     </AppModal>
 
     <!-- Stats modal -->
-    <AppModal v-model:open="showStats" title="Album statistics">
-      <div class="grid grid-cols-2 gap-3 text-sm">
-        <div class="pa-panel p-3"><div class="text-2xl font-bold">{{ stats.pages }}</div><div class="text-pebble-text-dim text-xs">Pages</div></div>
-        <div class="pa-panel p-3"><div class="text-2xl font-bold">{{ stats.used }}</div><div class="text-pebble-text-dim text-xs">Images used</div></div>
-        <div class="pa-panel p-3"><div class="text-2xl font-bold">{{ stats.unused }}</div><div class="text-pebble-text-dim text-xs">Unused</div></div>
-        <div class="pa-panel p-3"><div class="text-2xl font-bold">{{ stats.avg }}</div><div class="text-pebble-text-dim text-xs">Avg / page</div></div>
+    <AppModal v-model:open="showStats" title="Album statistics" width="480px">
+      <div class="grid grid-cols-4 divide-x divide-pebble-border rounded-lg border border-pebble-border bg-pebble-surface-2">
+        <div class="px-3 py-3"><div class="text-2xl font-semibold tabular-nums">{{ stats.pages }}</div><div class="pa-label mt-0.5">Pages</div></div>
+        <div class="px-3 py-3"><div class="text-2xl font-semibold tabular-nums">{{ stats.used }}</div><div class="pa-label mt-0.5">Images used</div></div>
+        <div class="px-3 py-3"><div class="text-2xl font-semibold tabular-nums" :class="stats.unused ? 'text-pebble-warning' : ''">{{ stats.unused }}</div><div class="pa-label mt-0.5">Unused</div></div>
+        <div class="px-3 py-3"><div class="text-2xl font-semibold tabular-nums">{{ stats.avg }}</div><div class="pa-label mt-0.5">Avg / page</div></div>
       </div>
     </AppModal>
   </div>

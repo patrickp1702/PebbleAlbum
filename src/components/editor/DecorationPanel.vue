@@ -8,6 +8,8 @@
  *  3. Graphic stickers — full-colour SVG stickers (any shape, true aspect ratio).
  *  4. Emoji stickers   — unicode glyph stickers; the theme suggests a set.
  * Stickers are movable objects placed in FRONT of the photos.
+ * Stickers are listed first: the editor's "Sticker" insert button opens this
+ * panel, so the thing the user came for is at the top.
  */
 import { computed, ref, onMounted, reactive } from 'vue';
 import { useProjectStore } from '@/stores/projectStore';
@@ -16,6 +18,7 @@ import { PATTERNS } from '@/engine/decoEngine';
 import { SVG_STICKERS, stickerDataUrl, type SvgSticker } from '@/config/stickers';
 import type { CustomSticker } from '@shared/ipc.types';
 import { v4 as uuid } from 'uuid';
+import AppIcon from '@/components/ui/AppIcon.vue';
 
 const project = useProjectStore();
 const editor = useEditorStore();
@@ -113,63 +116,64 @@ function addSvgSticker(s: SvgSticker) {
 </script>
 
 <template>
-  <div class="p-3 overflow-auto h-full space-y-4">
-    <div>
-      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-2">Page patterns</div>
-      <div class="grid grid-cols-3 gap-2">
-        <button v-for="p in drawable" :key="p.id" @click="togglePattern(p.id)"
-                :class="['rounded border px-2 py-2 text-2xs', has(p.id) ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']">
-          {{ p.label }}
-        </button>
-      </div>
-    </div>
-
-    <div>
-      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-2">Frames &amp; corners</div>
-      <div class="grid grid-cols-3 gap-2">
-        <button v-for="p in overlays" :key="p.id" @click="togglePattern(p.id)"
-                :class="['rounded border px-2 py-2 text-2xs', has(p.id) ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']">
-          {{ p.label }}
-        </button>
-      </div>
-    </div>
-
-    <div>
-      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-2">Graphic stickers</div>
+  <div class="p-3 overflow-auto h-full space-y-5">
+    <section>
+      <div class="pa-section mb-1">Stickers</div>
+      <p class="pa-hint mb-2">Click to drop one on the page, then drag it into place. Select it and press Delete to remove.</p>
       <div class="grid grid-cols-4 gap-1.5">
-        <button v-for="s in SVG_STICKERS" :key="s.id" @click="addSvgSticker(s)" :title="s.label"
-                class="aspect-square rounded border border-pebble-border hover:border-pebble-accent bg-pebble-bg flex items-center justify-center p-1.5">
+        <button v-for="s in SVG_STICKERS" :key="s.id" type="button" @click="addSvgSticker(s)" :title="s.label"
+                class="pa-tile aspect-square !bg-pebble-bg flex items-center justify-center p-1.5">
           <img :src="stickerDataUrl(s.id) || ''" :alt="s.label" class="max-h-full max-w-full object-contain pointer-events-none" />
         </button>
       </div>
-    </div>
+    </section>
 
-    <div v-if="customStickers.length">
-      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-2">My stickers <span class="text-pebble-accent-soft">· cutouts</span></div>
+    <section v-if="customStickers.length">
+      <div class="pa-section mb-1">My stickers</div>
+      <p class="pa-hint mb-2">Saved from the Erase / restore studio — available in every project.</p>
       <div class="grid grid-cols-4 gap-1.5">
         <div v-for="s in customStickers" :key="s.path" class="relative group">
-          <button @click="addCustomSticker(s)" :title="s.name"
-                  class="w-full aspect-square rounded border border-pebble-border hover:border-pebble-accent bg-pebble-bg flex items-center justify-center p-1.5 overflow-hidden">
+          <button type="button" @click="addCustomSticker(s)" :title="s.name"
+                  class="pa-tile w-full aspect-square !bg-pebble-bg flex items-center justify-center p-1.5 overflow-hidden">
             <img v-if="customThumbs[s.path]" :src="customThumbs[s.path]" :alt="s.name" class="max-h-full max-w-full object-contain pointer-events-none" />
           </button>
-          <button class="absolute -top-1 -right-1 hidden group-hover:flex h-4 w-4 items-center justify-center rounded-full bg-pebble-danger text-white text-2xs"
-                  title="Delete sticker" @click.stop="removeCustomSticker(s)">✕</button>
+          <button type="button" class="absolute -top-1.5 -right-1.5 hidden group-hover:flex group-focus-within:flex h-5 w-5 items-center justify-center rounded-full bg-pebble-danger-fill text-white"
+                  title="Delete sticker" aria-label="Delete sticker" @click.stop="removeCustomSticker(s)"><AppIcon name="x" :size="11" :stroke="2.5" /></button>
         </div>
       </div>
-      <p class="text-2xs text-pebble-text-dim mt-1">Made with ✂ Cutout &amp; blend — available in every project.</p>
-    </div>
+    </section>
 
-    <div>
-      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-2">
-        Emoji stickers <span v-if="themeStickers.length" class="text-pebble-accent-soft">· theme</span>
+    <section>
+      <div class="pa-section mb-2">
+        Emoji stickers <span v-if="themeStickers.length" class="normal-case tracking-normal font-normal text-pebble-accent-soft">· theme picks first</span>
       </div>
-      <div class="flex flex-wrap gap-1.5">
-        <button v-for="(s, i) in [...themeStickers, ...GENERAL_STICKERS]" :key="s + i" @click="addSticker(s)"
-                class="h-9 w-9 rounded border border-pebble-border hover:border-pebble-accent text-xl leading-none">
+      <div class="grid grid-cols-6 gap-1.5">
+        <button v-for="(s, i) in [...themeStickers, ...GENERAL_STICKERS]" :key="s + i" type="button" @click="addSticker(s)"
+                class="pa-tile aspect-square text-xl leading-none">
           {{ s }}
         </button>
       </div>
-      <p class="text-2xs text-pebble-text-dim mt-2">Click to drop a sticker, then drag it into place. Select + Delete to remove.</p>
-    </div>
+    </section>
+
+    <section>
+      <div class="pa-section mb-1">Page patterns</div>
+      <p class="pa-hint mb-2">Drawn behind the photos. Click to switch on or off.</p>
+      <div class="grid grid-cols-3 gap-1.5">
+        <button v-for="p in drawable" :key="p.id" type="button" @click="togglePattern(p.id)" :aria-pressed="has(p.id)"
+                :class="['pa-tile px-1.5 h-9 text-2xs leading-tight', has(p.id) ? 'is-active !bg-pebble-accent/15' : '']">
+          {{ p.label }}
+        </button>
+      </div>
+    </section>
+
+    <section>
+      <div class="pa-section mb-2">Frames &amp; corners</div>
+      <div class="grid grid-cols-3 gap-1.5">
+        <button v-for="p in overlays" :key="p.id" type="button" @click="togglePattern(p.id)" :aria-pressed="has(p.id)"
+                :class="['pa-tile px-1.5 h-9 text-2xs leading-tight', has(p.id) ? 'is-active !bg-pebble-accent/15' : '']">
+          {{ p.label }}
+        </button>
+      </div>
+    </section>
   </div>
 </template>

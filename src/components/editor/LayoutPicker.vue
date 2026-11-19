@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * LayoutPicker.vue — Bottom panel grid of layout templates. Applying a layout
+ * LayoutPicker.vue — Grid (right panel, Layout tab) of layout templates. Applying a layout
  * re-maps the current page's images into the new slots (keeps image content,
  * updates positions). Shows a tiny slot diagram per template.
  */
@@ -41,15 +41,19 @@ function applyLayout(layoutId: string) {
 </script>
 
 <template>
-  <div class="grid grid-cols-3 gap-2 p-3 overflow-auto">
-    <button v-for="l in LAYOUTS" :key="l.id" @click="applyLayout(l.id)"
-            :class="['rounded border p-2 text-left transition',
-                     project.pages[editor.activePageIndex]?.layoutId === l.id ? 'border-pebble-accent' : 'border-pebble-border hover:border-pebble-accent/50']">
-      <div class="relative aspect-[3/2] bg-pebble-bg rounded mb-1">
-        <div v-for="s in l.slots" :key="s.id" class="absolute bg-pebble-accent/40 rounded-[1px]"
-             :style="{ left: `${s.x*100}%`, top: `${s.y*100}%`, width: `${s.w*100}%`, height: `${s.h*100}%` }" />
-      </div>
-      <div class="text-2xs truncate">{{ l.name }}</div>
-    </button>
+  <div class="p-3 overflow-auto">
+    <div class="pa-section mb-1">Page layout</div>
+    <p class="pa-hint mb-2.5">Pick a template — this page's photos are re-flowed into its frames.</p>
+    <div class="grid grid-cols-3 gap-2">
+      <button v-for="l in LAYOUTS" :key="l.id" type="button" @click="applyLayout(l.id)" :title="l.name"
+              :class="['pa-tile p-1.5 text-left', project.pages[editor.activePageIndex]?.layoutId === l.id ? 'is-active' : '']">
+        <div class="relative aspect-[3/2] bg-pebble-bg rounded-sm mb-1 overflow-hidden">
+          <div v-for="s in l.slots" :key="s.id" class="absolute rounded-[1px]"
+               :class="project.pages[editor.activePageIndex]?.layoutId === l.id ? 'bg-pebble-accent' : 'bg-pebble-border-strong'"
+               :style="{ left: `${s.x*100}%`, top: `${s.y*100}%`, width: `${s.w*100}%`, height: `${s.h*100}%`, boxShadow: '0 0 0 1px rgb(var(--ui-canvas))' }" />
+        </div>
+        <div class="text-2xs truncate">{{ l.name }}</div>
+      </button>
+    </div>
   </div>
 </template>

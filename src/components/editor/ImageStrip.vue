@@ -13,12 +13,15 @@ import { useEditorStore } from '@/stores/editorStore';
 import { useAppStore } from '@/stores/appStore';
 import { setMovePayload } from '@/engine/dragMove';
 import type { ImageRecord } from '@shared/pebble.types';
+import AppIcon from '@/components/ui/AppIcon.vue';
+import AppSegmented from '@/components/ui/AppSegmented.vue';
 
 const project = useProjectStore();
 const editor = useEditorStore();
 const app = useAppStore();
 const query = ref('');
 const filter = ref<'all' | 'unused'>('all');
+const FILTERS = [{ value: 'all', label: 'All' }, { value: 'unused', label: 'Unused' }] as const;
 
 const list = computed<ImageRecord[]>(() => {
   const q = query.value.toLowerCase();
@@ -59,27 +62,30 @@ function onDragStart(e: DragEvent, rec: ImageRecord) {
 
 <template>
   <div class="h-full flex flex-col">
-    <div class="flex items-center gap-2 px-3 py-1.5 border-b border-pebble-border">
-      <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
-        <button class="px-2 py-0.5 rounded" :class="filter === 'all' ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim'" @click="filter = 'all'">All</button>
-        <button class="px-2 py-0.5 rounded" :class="filter === 'unused' ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim'" @click="filter = 'unused'">Unused</button>
-      </div>
-      <input v-model="query" class="pa-input py-0.5 text-xs flex-1 max-w-xs" placeholder="Search images…" />
-      <span class="text-2xs text-pebble-text-dim">Click to open its page · drag onto a page to move/place</span>
+    <div class="flex items-center gap-3 px-3 h-10 border-b border-pebble-border shrink-0">
+      <AppSegmented v-model="filter" :options="FILTERS" class="w-36 shrink-0" />
+      <label class="relative flex-1 max-w-xs min-w-0">
+        <AppIcon name="search" :size="14" class="absolute left-2 top-1/2 -translate-y-1/2 text-pebble-text-dim pointer-events-none" />
+        <input v-model="query" class="pa-input w-full h-7 !py-0 !pl-7 text-xs" placeholder="Search images" aria-label="Search images" />
+      </label>
+      <span class="pa-hint truncate hidden xl:inline">Click to open its page · drag onto a page to place or move</span>
+      <span class="ml-auto text-2xs text-pebble-text-dim tabular-nums shrink-0">{{ list.length }} image{{ list.length === 1 ? '' : 's' }}</span>
     </div>
     <div class="flex-1 overflow-x-auto overflow-y-hidden p-2">
       <div class="flex gap-2 h-full items-stretch">
         <div v-for="r in list" :key="r.absolutePath"
              draggable="true" @dragstart="onDragStart($event, r)" @click="openImage(r)"
-             class="relative shrink-0 w-28 rounded overflow-hidden bg-pebble-bg cursor-grab active:cursor-grabbing border border-transparent hover:border-pebble-accent/60"
+             class="relative shrink-0 w-28 flex flex-col rounded-md overflow-hidden bg-pebble-surface-2 cursor-grab active:cursor-grabbing border border-pebble-border transition-colors hover:border-pebble-border-strong"
              :title="r.filename">
-          <img v-if="thumbs[r.thumbnailPath]" :src="thumbs[r.thumbnailPath]" class="w-full h-[78%] object-cover pointer-events-none" />
-          <div v-else class="w-full h-[78%] bg-pebble-surface-2 animate-pulse" />
-          <div class="px-1 py-0.5 text-2xs truncate">{{ r.filename }}</div>
-          <div v-if="r.usedOnPages.length" class="absolute top-1 left-1 pa-chip">p{{ pageIndexOf(r) + 1 }}</div>
-          <div v-else class="absolute top-1 left-1 pa-chip bg-pebble-warning/20 text-pebble-warning border-pebble-warning/40">unused</div>
+          <img v-if="thumbs[r.thumbnailPath]" :src="thumbs[r.thumbnailPath]" class="w-full flex-1 min-h-0 object-cover pointer-events-none" />
+          <div v-else class="w-full flex-1 min-h-0 bg-pebble-hover animate-pulse" />
+          <div class="px-1.5 h-5 flex items-center text-2xs text-pebble-text-dim"><span class="truncate">{{ r.filename }}</span></div>
+          <div v-if="r.usedOnPages.length" class="absolute top-1 left-1 px-1.5 h-[18px] inline-flex items-center rounded text-2xs font-medium bg-black/70 text-white">p{{ pageIndexOf(r) + 1 }}</div>
+          <div v-else class="absolute top-1 left-1 px-1.5 h-[18px] inline-flex items-center rounded text-2xs font-semibold bg-pebble-warning text-black">Unused</div>
         </div>
-        <div v-if="!list.length" class="text-pebble-text-dim text-xs self-center px-4">No images.</div>
+        <div v-if="!list.length" class="text-pebble-text-dim text-xs self-center px-4">
+          {{ query || filter === 'unused' ? 'No images match — clear the search or switch to All.' : 'No images in this album yet.' }}
+        </div>
       </div>
     </div>
   </div>

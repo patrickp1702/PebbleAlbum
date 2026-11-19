@@ -2,6 +2,7 @@
 /**
  * PageStrip.vue — Left sidebar list of pages. Click to navigate, drag to
  * reorder, right-click for page actions. Shows type badge + proverb/lock icons.
+ * The active page is marked by a 2px accent outline only (no glow).
  */
 import { ref, reactive, onMounted, watch } from 'vue';
 import { useProjectStore } from '@/stores/projectStore';
@@ -12,6 +13,7 @@ import { renderPageStatic } from '@/engine/pageRenderer';
 import { loadImageDataUrl } from '@/engine/imageLoader';
 import { movePayloadFromDrop, applyImageDropToPage } from '@/engine/dragMove';
 import type { AlbumPage } from '@shared/pebble.types';
+import AppIcon from '@/components/ui/AppIcon.vue';
 
 const project = useProjectStore();
 const editor = useEditorStore();
@@ -112,51 +114,57 @@ function addPage() {
 
 <template>
   <aside class="w-44 shrink-0 bg-pebble-surface border-r border-pebble-border flex flex-col">
-    <div class="px-3 py-2 text-xs uppercase tracking-wider text-pebble-text-dim border-b border-pebble-border">Pages</div>
-    <div class="flex-1 overflow-auto p-2 space-y-2">
+    <div class="px-3 h-10 flex items-center justify-between border-b border-pebble-border shrink-0">
+      <span class="pa-section">Pages</span>
+      <span class="text-2xs text-pebble-text-dim tabular-nums">{{ project.pages.length }}</span>
+    </div>
+    <div class="flex-1 overflow-auto p-2.5 space-y-2.5">
       <div v-for="(p, i) in project.pages" :key="p.id"
            draggable="true"
            @dragstart="dragFrom = i" @dragover.prevent @dragenter="dropTarget = i" @dragleave="dropTarget = (dropTarget === i ? null : dropTarget)" @drop="onDrop($event, i)"
            @click="editor.setPage(i)" @contextmenu.prevent="openMenu($event, i)"
-           :class="['relative rounded-md border-2 cursor-pointer transition group',
-                    dropTarget === i ? 'border-pebble-accent ring-2 ring-pebble-accent' :
-                    i === editor.activePageIndex ? 'border-pebble-accent ring-2 ring-pebble-accent shadow-lg shadow-pebble-accent/30' : 'border-transparent hover:border-pebble-accent/50']">
-        <!-- Active-page marker -->
-        <div v-if="i === editor.activePageIndex" class="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-pebble-accent" />
-        <div class="aspect-[3/2] rounded-t overflow-hidden flex items-center justify-center text-pebble-text-dim"
+           class="relative cursor-pointer group">
+        <div :class="['relative aspect-[3/2] rounded overflow-hidden flex items-center justify-center text-pebble-text-off outline outline-2 outline-offset-2 transition-[outline-color]',
+                      dropTarget === i ? 'outline-pebble-accent-soft outline-dashed' :
+                      i === editor.activePageIndex ? 'outline-pebble-accent' : 'outline-transparent group-hover:outline-pebble-border-strong']"
              :style="{ background: p.backgroundColor || '#fff' }">
           <img v-if="thumbs[p.id]" :src="thumbs[p.id]" class="w-full h-full object-contain" :alt="`Page ${i + 1}`" />
-          <span v-else class="text-xl animate-pulse">▱</span>
-          <!-- Amber badge: images assigned to this page but not placed in the layout. -->
+          <AppIcon v-else name="image" :size="20" class="animate-pulse" />
+          <!-- Warning badge: images assigned to this page but not placed in the layout. -->
           <span v-if="unplacedCount(p) > 0"
-                class="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-pebble-warning text-black text-2xs font-bold flex items-center justify-center shadow"
+                class="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-pebble-warning text-black text-2xs font-bold flex items-center justify-center"
                 :title="`${unplacedCount(p)} image(s) assigned but not placed`">
             {{ unplacedCount(p) }}
           </span>
         </div>
-        <div class="flex items-center justify-between px-2 py-1 text-2xs"
-             :class="unplacedCount(p) > 0 ? 'text-pebble-warning' : ''">
-          <span>{{ i + 1 }} · {{ badge[p.type] }}</span>
-          <span class="flex gap-0.5">
-            <span v-if="p.proverb" title="Has proverb">“”</span>
-            <span v-if="p.locked" title="Locked">🔒</span>
-            <span v-if="p.notes" title="Has note">📝</span>
+        <div class="flex items-center justify-between pt-1.5 px-0.5 text-2xs"
+             :class="unplacedCount(p) > 0 ? 'text-pebble-warning' : i === editor.activePageIndex ? 'text-pebble-text' : 'text-pebble-text-dim'">
+          <span><span class="tabular-nums font-medium">{{ i + 1 }}</span> · {{ badge[p.type] }}</span>
+          <span class="flex items-center gap-1 text-pebble-text-dim">
+            <span v-if="p.proverb" title="Has proverb"><AppIcon name="quote" :size="12" /></span>
+            <span v-if="p.locked" title="Locked"><AppIcon name="lock" :size="12" /></span>
+            <span v-if="p.notes" title="Has note"><AppIcon name="note" :size="12" /></span>
           </span>
         </div>
-
       </div>
     </div>
-    <button class="m-2 py-2 rounded border border-dashed border-pebble-border text-sm text-pebble-text-dim hover:border-pebble-accent hover:text-pebble-accent" @click="addPage">＋ Add page</button>
+    <div class="p-2 border-t border-pebble-border shrink-0">
+      <button type="button" class="w-full h-8 inline-flex items-center justify-center gap-1.5 rounded-md border border-dashed border-pebble-border-strong text-xs font-medium text-pebble-text-dim transition-colors hover:border-pebble-accent-soft hover:text-pebble-text hover:bg-pebble-hover"
+              title="Add a blank page at the end" @click="addPage">
+        <AppIcon name="plus" :size="14" />Add page
+      </button>
+    </div>
 
     <!-- Context menu (teleported to body so it can't be clipped) -->
     <Teleport to="body">
       <div v-if="menu" class="fixed inset-0 z-[200]" @click="closeMenu" @contextmenu.prevent="closeMenu">
-        <div class="absolute pa-panel text-xs w-44 py-1 shadow-2xl" :style="{ left: menu.x + 'px', top: menu.y + 'px' }" @click.stop>
-          <button class="block w-full text-left px-3 py-2 hover:bg-pebble-hover" @click="project.duplicatePage(menu.index); editor.requestRender(); closeMenu()">Duplicate page</button>
-          <button class="block w-full text-left px-3 py-2 hover:bg-pebble-hover" @click="editor.setPage(menu.index); closeMenu()">Go to page</button>
-          <button class="block w-full text-left px-3 py-2 hover:bg-pebble-hover" @click="toggleLock(menu.index); closeMenu()">{{ project.pages[menu.index]?.locked ? 'Unlock page' : 'Lock page' }}</button>
+        <div class="absolute w-44 p-1 rounded-lg bg-pebble-surface-2 border border-pebble-border-strong/50 shadow-pop text-xs"
+             :style="{ left: menu.x + 'px', top: menu.y + 'px' }" role="menu" @click.stop>
+          <button type="button" role="menuitem" class="flex items-center gap-2 w-full text-left px-2 h-7 rounded hover:bg-pebble-hover" @click="project.duplicatePage(menu.index); editor.requestRender(); closeMenu()"><AppIcon name="copy" :size="14" class="text-pebble-text-dim" />Duplicate page</button>
+          <button type="button" role="menuitem" class="flex items-center gap-2 w-full text-left px-2 h-7 rounded hover:bg-pebble-hover" @click="editor.setPage(menu.index); closeMenu()"><AppIcon name="arrow-right" :size="14" class="text-pebble-text-dim" />Go to page</button>
+          <button type="button" role="menuitem" class="flex items-center gap-2 w-full text-left px-2 h-7 rounded hover:bg-pebble-hover" @click="toggleLock(menu.index); closeMenu()"><AppIcon :name="project.pages[menu.index]?.locked ? 'unlock' : 'lock'" :size="14" class="text-pebble-text-dim" />{{ project.pages[menu.index]?.locked ? 'Unlock page' : 'Lock page' }}</button>
           <div class="border-t border-pebble-border my-1" />
-          <button class="block w-full text-left px-3 py-2 hover:bg-pebble-hover text-pebble-danger" @click="project.deletePage(menu.index); editor.requestRender(); closeMenu()">Delete page</button>
+          <button type="button" role="menuitem" class="flex items-center gap-2 w-full text-left px-2 h-7 rounded text-pebble-danger hover:bg-pebble-danger/15" @click="project.deletePage(menu.index); editor.requestRender(); closeMenu()"><AppIcon name="trash" :size="14" />Delete page</button>
         </div>
       </div>
     </Teleport>

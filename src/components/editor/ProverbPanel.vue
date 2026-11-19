@@ -4,7 +4,7 @@
  * blocks, so each one can be MOVED, ROTATED, RESTYLED (font/size/colour) on the
  * canvas, and a page can have MORE THAN ONE. Click a proverb to select + edit it
  * (opens the Text panel); add from the theme suggestions, your album proverbs, or
- * a blank one. Legacy single-proverb pages are migrated to a text block on open.
+ * a blank one (shown to the user as the page's "Text" tab). Legacy single-proverb pages are migrated to a text block on open.
  */
 import { computed, onMounted, watch } from 'vue';
 import { v4 as uuid } from 'uuid';
@@ -12,7 +12,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { proverbsByCategory } from '@/engine/proverbSelector';
 import type { TextBlock } from '@shared/pebble.types';
-import AppButton from '@/components/ui/AppButton.vue';
+import AppIcon from '@/components/ui/AppIcon.vue';
 
 const project = useProjectStore();
 const editor = useEditorStore();
@@ -91,38 +91,44 @@ function removeProverb(id: string) {
 </script>
 
 <template>
-  <div class="p-3 flex flex-col gap-3 h-full overflow-auto">
-    <div class="flex items-center justify-between">
-      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim">Proverbs on this page</div>
-      <AppButton size="sm" @click="addProverb('Your proverb here')">+ Add</AppButton>
-    </div>
+  <div class="p-3 flex flex-col gap-4 h-full overflow-auto">
+    <section>
+      <div class="flex items-center justify-between mb-2">
+        <div class="pa-section">Text on this page</div>
+        <button type="button" class="pa-btn !h-7 !px-2" title="Add a text block you can move, rotate and restyle" @click="addProverb('Your proverb here')">
+          <AppIcon name="plus" :size="14" />Add text
+        </button>
+      </div>
 
-    <div v-if="proverbBlocks.length" class="space-y-1.5">
-      <div v-for="p in proverbBlocks" :key="p.id"
-           class="flex items-center gap-2 rounded bg-pebble-bg p-1.5 cursor-pointer hover:bg-pebble-hover transition"
-           :class="editor.selectedObjectId === p.id ? 'ring-1 ring-pebble-accent' : ''"
-           @click="selectProverb(p.id)">
-        <span class="flex-1 truncate text-[12px] italic" :style="{ fontFamily: p.style.fontFamily }">{{ p.content || 'Empty proverb' }}</span>
-        <button class="px-1.5 py-1 rounded text-pebble-text-dim hover:text-pebble-accent hover:bg-pebble-hover" title="Edit" @click.stop="selectProverb(p.id)">✎</button>
-        <button class="px-1.5 py-1 rounded text-pebble-text-dim hover:text-pebble-danger hover:bg-pebble-hover" title="Remove" @click.stop="removeProverb(p.id)">✕</button>
+      <div v-if="proverbBlocks.length" class="space-y-0.5">
+        <div v-for="p in proverbBlocks" :key="p.id"
+             class="flex items-center gap-1 h-9 pl-2 pr-1 rounded-md border-l-2 cursor-pointer transition-colors"
+             :class="editor.selectedObjectId === p.id ? 'bg-pebble-accent/15 border-pebble-accent' : 'border-transparent hover:bg-pebble-hover'"
+             @click="selectProverb(p.id)">
+          <span class="flex-1 truncate text-xs italic" :style="{ fontFamily: p.style.fontFamily }">{{ p.content || 'Empty text' }}</span>
+          <button type="button" class="pa-iconbtn !h-7 !w-7" title="Edit text" aria-label="Edit text" @click.stop="selectProverb(p.id)"><AppIcon name="pencil" :size="14" /></button>
+          <button type="button" class="pa-iconbtn !h-7 !w-7 hover:!text-pebble-danger" title="Remove text" aria-label="Remove text" @click.stop="removeProverb(p.id)"><AppIcon name="trash" :size="14" /></button>
+        </div>
+        <p class="pa-hint pt-1.5">Click a text to edit its font, size, colour and rotation. Drag it on the page to reposition.</p>
       </div>
-      <p class="text-2xs text-pebble-text-dim">Click a proverb to edit its font, size, colour & rotation. Drag it on the page to reposition.</p>
-    </div>
-    <p v-else class="text-2xs text-pebble-text-dim">No proverbs yet. Add one, or pick a suggestion below.</p>
+      <div v-else class="rounded-md border border-dashed border-pebble-border px-3 py-4 text-center pa-hint">
+        No text on this page yet. Use <b class="text-pebble-text">Add text</b>, or pick a proverb below.
+      </div>
+    </section>
 
-    <div class="flex-1 space-y-3">
-      <div v-if="themeSuggestions.length">
-        <div class="text-xs text-pebble-text-dim mb-1">Suggested for this theme</div>
-        <div class="flex flex-wrap gap-2">
-          <button v-for="p in themeSuggestions" :key="p" class="pa-chip max-w-xs truncate" @click="addProverb(p)">{{ p }}</button>
-        </div>
+    <section v-if="themeSuggestions.length">
+      <div class="pa-section mb-2">Proverbs for this theme</div>
+      <div class="flex flex-col gap-1">
+        <button v-for="p in themeSuggestions" :key="p" type="button" :title="p"
+                class="pa-tile px-2 py-1.5 text-left text-xs leading-snug" @click="addProverb(p)">{{ p }}</button>
       </div>
-      <div v-if="(project.meta?.proverbs || []).length">
-        <div class="text-xs text-pebble-text-dim mb-1">From your album proverbs</div>
-        <div class="flex flex-wrap gap-2">
-          <button v-for="p in project.meta?.proverbs || []" :key="p" class="pa-chip max-w-xs truncate" @click="addProverb(p)">{{ p }}</button>
-        </div>
+    </section>
+    <section v-if="(project.meta?.proverbs || []).length">
+      <div class="pa-section mb-2">Your album proverbs</div>
+      <div class="flex flex-col gap-1">
+        <button v-for="p in project.meta?.proverbs || []" :key="p" type="button" :title="p"
+                class="pa-tile px-2 py-1.5 text-left text-xs leading-snug" @click="addProverb(p)">{{ p }}</button>
       </div>
-    </div>
+    </section>
   </div>
 </template>
