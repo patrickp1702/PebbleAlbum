@@ -8,8 +8,11 @@
  * assorted unicode symbols as icons.
  *
  * Attribution: the grid, stroke convention and a number of the glyph outlines
- * follow the open-source Lucide icon set (https://lucide.dev, ISC licence,
- * itself a fork of Feather, MIT); the rest are drawn here to match.
+ * are taken or adapted from the open-source Lucide icon set (https://lucide.dev,
+ * ISC licence; a fork of Feather, MIT); the rest are drawn here to match.
+ * Copyright (c) Lucide Contributors 2022; portions Copyright (c) Cole Bemis
+ * 2013-2022 (Feather). The full licence texts are in THIRD_PARTY_NOTICES.md at
+ * the repository root and must stay with any copy of this file.
  *
  * To add an icon: add ONE entry to ICONS below (path `d` data; several
  * sub-paths may be joined in one string). Use `circle()` / `rect()` for the

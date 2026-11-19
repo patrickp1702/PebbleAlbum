@@ -181,6 +181,9 @@ Renderer-only (use Fabric/DOM/`window`): `pageRenderer`, `fabricFilters`,
   registry → free overlay on top, centred + staggered, undoable, selected after the
   rebuild, locked/error toasts) + the pure `buildFreePhotos` placement helper. UI
   orchestration over stores (no component imports).
+- `composables/keyboard.ts` — shared window-shortcut helpers: `MOD` (platform modifier for tooltips)
+  and `isTextEntry()` / `isRangeInput()`. ⚠ INVARIANT: window-level shortcuts must stand down while the
+  user types in a field (Backspace in a caption box must never delete the selected photo).
 - `editor/PropertiesPanel.vue` — selected-IMAGE editor (Transform incl. fit + zoom
   + crop toggle, Effects, Border [Line: solid/dashed/dotted/double + optional
   **gradient**; or **Decorative frame**: 13 SVG motifs], Shadow, Caption) + Back.

@@ -98,7 +98,7 @@ new names fill the gaps. **Album themes** (`src/config/themes.json`, injected as
 | Focus | `:focus-visible` outline | 2px `#6EA2FF` |
 
 A light ramp is defined under `.light` for the existing `uiTheme` preference (no screen exposes the
-toggle today; it is not visually verified).
+toggle today; checked on Welcome and the album editor only).
 
 Component classes (`@layer components` in style.css): `pa-topbar`, `pa-iconbtn`, `pa-btn`, `pa-seg` /
 `pa-seg-item`, `pa-tab`, `pa-tile`, `pa-section`, `pa-label`, `pa-hint`, `pa-kbd`, plus the existing
@@ -110,9 +110,9 @@ stacked), `AppSlider`, `AppColorPicker`, `AppDropdown`, `AppModal` (Esc closes),
 `AppTooltip` (teleported, never clipped, shortcut hint), `AppProgress`, `AppEmptyState`, `AppIcon`.
 
 Icons: `src/components/ui/icons.ts` holds the path data; the grid, stroke convention and a number of
-outlines follow the open-source **Lucide** set (ISC licence; a fork of Feather, MIT), the rest are
-drawn to match. Emoji that are *content* stay: emoji stickers, the shape-mask glyph picker
-(`engine/maskShapes.ts`), theme/proverb category emblems.
+outlines are taken or adapted from the open-source **Lucide** set (ISC licence; a fork of Feather, MIT),
+the rest are drawn to match. The licence texts are in `THIRD_PARTY_NOTICES.md` at the repository root. Emoji that are *content* stay: emoji stickers and theme/proverb
+category emblems. (The shape-mask picker now draws previews from the real mask geometry.)
 
 ## 5. Screens — what changed, why, and what moved
 
@@ -177,22 +177,50 @@ Flows **kept**; brought to the system. Wizard: numbered stepper with done/curren
 | Pick folder (Duplicate Finder) | top bar | centre empty state; "Change folder…" stays in the top bar |
 | Set counts (Duplicate Finder) | strictness row | bottom action bar, left |
 
-Renamed labels (same handlers): page-panel tab "Proverb" → "Text"; "Cover / Contain" → "Fill frames / Fit whole"; "Focus ↔ / ↕" → "Focus horizontal / vertical".
-New entry points to existing functions: zoom **Fit** (`editor.resetZoom`), page previous/next (`editor.setPage`), Text / Sticker insert buttons (open the matching page-panel tab), Cancel beside Apply / Export.
+| Hint text (Pixart, Collage) | top bar | right end of the insert bar, shortened |
+| Text panel sections | Content, font, size, weight, colour, align, spacing, line height, rotation, opacity, bend… in one column | Content · Typography · Spacing & shape · Rotation & opacity · Legibility |
+| Toasts | bottom-right | top-centre below the bars (they covered the pinned primary actions) |
+
+Renamed labels (same handlers): page-panel tab "Proverb" → "Text"; "+ Add" → "Add text"; "Cover / Contain" → "Fill frames / Fit whole";
+"Focus ↔ / ↕" → "Focus horizontal / vertical"; "Clear erasing" → "Clear"; "Color" → "Colour"; "Export now" → "Export";
+"Generate Album" → "Generate album"; "Delete project?" → "Delete album?"; "New Album Project" → "New album";
+Folder duplicates "Similarity ≥" → "Minimum similarity"; Duplicate Finder "Move N to /duplicate" → "Move N to duplicate folder" and its
+confirm button "Move" → "Move N"; "Pick folder…" → "Choose folder…" (Duplicate Finder) / "Change…" once a folder is loaded (Collage).
+
+New entry points to existing functions: zoom **Fit** in the editor, Pixart and Collage (`editor.resetZoom`), page previous/next
+(`editor.setPage`), Text / Sticker insert buttons (open the matching page-panel tab), insert-bar Photo in Collage (`useAddPhoto`),
+Cancel beside Apply / Export, **New scan** in Folder duplicates results (clears the report, returning to the folder list).
 
 ## 6. Non-template changes
 
-Presentation-only, listed so they can be audited:
+Presentation-only unless marked **behaviour**; listed so they can be audited.
 
 - `PagePanel.vue` — optional `tab` v-model (prop `tab`, emit `update:tab`) so a host view can open a tab; without it the panel keeps its own state. Noted in `MODULES.md`.
 - `AlbumEditorView.vue`, `PixartView.vue`, `CollageView.vue` — a `pageTab` ref, `openPageTab()`, page stepper, and `useAddPhoto()` for the insert bar.
-- `AlbumCanvas.vue` — four colour literals for Fabric selection/crop/drop outlines changed from the old purple to the accent; no logic touched.
-- `AppModal.vue` — Esc closes the dialog (capture phase, so the screen underneath does not also react).
-- `AppSlider.vue` — double-click reset and fill computation.
-- Icon fields and option arrays for tabs / segmented controls in several panels; one tooltip-text computed in the wizard.
+- `composables/keyboard.ts` (new) — `MOD` (platform modifier for tooltips), `isTextEntry()`, `isRangeInput()`; shared by the three editor screens.
+- `AlbumCanvas.vue` — five colour literals for Fabric selection / crop / drop outlines changed from the old purple to the accent; no logic touched.
+- `AppSlider.vue` — double-click reset, fill computation, `customReset` + `reset` event, `tint` switch.
+- `maskShapes.maskPathData` is imported by `PropertiesPanel` to draw the mask previews (pure function, engine unchanged).
+- Icon fields and option arrays for tabs / segmented controls in several panels; one tooltip-text computed in the wizard; a frequency-label map in the review step.
+
+Small **behaviour** changes (each is a fix or a guard, none changes data):
+
+| Change | Where |
+|---|---|
+| Shortcuts stand down while typing: Backspace / Delete / arrows / undo no longer act on the page when the focus is in a text field, textarea, number field or select (previously Backspace in the Caption box deleted the selected photo). Escape and Save still work; sliders and checkboxes do not block shortcuts, and a focused slider keeps its arrow keys | `AlbumEditorView.onKey` |
+| `?` is ignored during Preview (the dialog would open under the slideshow) | `AlbumEditorView.onKey` |
+| Esc closes an open dialog first (capture phase), ignoring IME composition | `AppModal` |
+| Preview controls fade out after 3s without pointer movement and return on move / click / focus | `AlbumEditorView` |
+| Double-click on "Manual zoom in frame" returns the photo to automatic fit (keeps focal point and cover zoom) | `PropertiesPanel.resetManualZoom` |
+| Double-click reset on sliders (to the control's creation default: shadow 0 / 8 / 24, new-text opacity 95%, line height 130%, JPEG quality 95, similarity 70, strictness 5, …) | `AppSlider` callers |
+| The page-panel tab persists across select → back (the host owns it) | `PagePanel` + hosts |
+| Tooltips appear on keyboard focus only, not after a mouse click | `AppTooltip` |
+| Wizard Back is disabled while generating; Collage Download is disabled while saving; Export settings are locked while exporting; Collage Clear is disabled when there is nothing to clear | wizard, Collage, Export |
+| Toasts moved top-centre | `AppToast` |
 
 ## 7. Known gaps
 
-- The light ramp is defined but not visually verified (no screen exposes the toggle).
+- The light ramp (no screen exposes the toggle) was checked on Welcome and the album editor only; the other screens are unverified in light.
+- Text sliders (letter spacing, line height, opacity) reset to the "Add text" defaults; generated titles/captions start from other values, so those three do not show the "changed" tint.
 - Number fields for X / Y / W / H show unrounded values, as before.
 - Selecting a text block through the page panel's pencil opens an empty properties panel — this predates the redesign (the canvas selection request does not carry the object type) and needs a logic fix, which is out of scope here.
