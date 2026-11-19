@@ -1,21 +1,58 @@
 <script setup lang="ts">
-/** AppTooltip — hover tooltip with a 300ms reveal delay. */
-import { ref } from 'vue';
-defineProps<{ text: string }>();
+/**
+ * AppTooltip — hover/focus tooltip with a short reveal delay and an optional
+ * keyboard-shortcut hint. The bubble is teleported to <body> and positioned
+ * with fixed coordinates, so it is never clipped by a toolbar edge or a
+ * scrolling panel, and it is clamped to stay inside the window.
+ */
+import { ref, nextTick } from 'vue';
+
+const props = withDefaults(defineProps<{
+  text: string;
+  /** Optional shortcut shown as a key cap, e.g. "⌘Z". */
+  shortcut?: string;
+  /** Preferred side; flips automatically when there is no room. */
+  placement?: 'top' | 'bottom';
+}>(), { placement: 'bottom' });
+
+const host = ref<HTMLElement | null>(null);
+const bubble = ref<HTMLElement | null>(null);
 const show = ref(false);
+const pos = ref({ left: 0, top: 0 });
 let timer: ReturnType<typeof setTimeout> | null = null;
-const enter = () => { timer = setTimeout(() => { show.value = true; }, 300); };
+
+async function place() {
+  await nextTick();
+  const h = host.value?.getBoundingClientRect();
+  const b = bubble.value?.getBoundingClientRect();
+  if (!h || !b) return;
+  const gap = 6;
+  let top = props.placement === 'top' ? h.top - b.height - gap : h.bottom + gap;
+  if (top + b.height > window.innerHeight - 4) top = h.top - b.height - gap;
+  if (top < 4) top = h.bottom + gap;
+  const left = Math.min(Math.max(4, h.left + h.width / 2 - b.width / 2), window.innerWidth - b.width - 4);
+  pos.value = { left, top };
+}
+const enter = () => {
+  if (!props.text) return;
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(() => { show.value = true; void place(); }, 350);
+};
 const leave = () => { if (timer) clearTimeout(timer); show.value = false; };
 </script>
 
 <template>
-  <span class="relative inline-flex" @mouseenter="enter" @mouseleave="leave">
+  <span ref="host" class="relative inline-flex" @mouseenter="enter" @mouseleave="leave"
+        @focusin="enter" @focusout="leave" @pointerdown="leave">
     <slot />
-    <transition name="fade">
-      <span v-if="show" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap
-                   px-2 py-1 rounded bg-black/90 text-[11px] text-white z-50 pointer-events-none">
+    <Teleport to="body">
+      <span v-if="show" ref="bubble" role="tooltip"
+            class="fixed z-[300] pointer-events-none flex items-center gap-2 whitespace-nowrap px-2 py-1 rounded-md
+                   bg-pebble-pressed border border-pebble-border-strong/40 text-xs text-pebble-text shadow-pop"
+            :style="{ left: `${pos.left}px`, top: `${pos.top}px` }">
         {{ text }}
+        <span v-if="shortcut" class="text-pebble-text-dim font-mono text-2xs">{{ shortcut }}</span>
       </span>
-    </transition>
+    </Teleport>
   </span>
 </template>

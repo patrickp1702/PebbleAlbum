@@ -103,7 +103,7 @@ async function doDelete() {
           </div>
         </div>
         <AppButton size="sm" @click="router.push('/collage')">Resume</AppButton>
-        <button class="text-xs text-pebble-text-dim hover:text-red-400 px-1" title="Discard the saved collage" @click="discardCollage">Discard</button>
+        <button class="text-xs text-pebble-text-dim hover:text-pebble-danger px-1" title="Discard the saved collage" @click="discardCollage">Discard</button>
       </div>
 
       <div class="grid grid-cols-3 gap-4">
@@ -160,7 +160,7 @@ async function doDelete() {
           </div>
           <div class="font-medium truncate">{{ r.name }}</div>
           <div class="text-xs text-pebble-text-dim">{{ new Date(r.lastOpened).toLocaleString() }} · {{ r.imageCount }} images · {{ r.pageCount }} pages</div>
-          <button class="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 text-pebble-text-dim hover:text-red-400 hover:bg-black/70"
+          <button class="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 text-pebble-text-dim hover:text-pebble-danger hover:bg-black/70"
                   title="Delete project" @click.stop="confirmDelete = r">✕</button>
         </div>
       </div>

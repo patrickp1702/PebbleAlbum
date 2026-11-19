@@ -63,7 +63,7 @@ function isAncOrEq(anc: number, node: number): boolean {
 const baseName = (p: string) => p.split('/').filter(Boolean).pop() || p;
 const rootLabel = (i: number) => baseName(report.value?.roots[i] ?? `root ${i}`);
 // Distinct hue per root for the little colour chips.
-const ROOT_HUES = ['#6C63FF', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#a855f7', '#ef4444', '#14b8a6'];
+const ROOT_HUES = ['#2B66F6', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#a855f7', '#ef4444', '#14b8a6'];
 
 // ── Duplicate FOLDER rows: threshold filter → outermost-only suppression ─────
 interface FolderRow { a: DupFolderInfo; b: DupFolderInfo; sim: number; recShared: number; scope: 'within' | 'across' }
@@ -209,7 +209,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   <div class="h-full w-full flex flex-col bg-pebble-bg text-pebble-text">
     <!-- Header -->
     <header class="flex items-center gap-3 px-4 h-13 py-2 border-b border-pebble-border">
-      <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-white/5" @click="router.push('/')">‹ Home</button>
+      <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-pebble-hover" @click="router.push('/')">‹ Home</button>
       <div class="font-semibold">🗂️ Duplicate Folder Finder</div>
       <div class="text-xs text-pebble-text-dim">Find folders &amp; files duplicated within or across your selected drives — by name{{ matchBy.includes('date') ? ' + date' : '' }}.</div>
       <div class="flex-1" />
@@ -225,7 +225,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <div v-for="(r, i) in roots" :key="r" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-pebble-surface border border-pebble-border">
             <span class="h-3 w-3 rounded-full shrink-0" :style="{ background: ROOT_HUES[i % ROOT_HUES.length] }" />
             <span class="text-sm truncate flex-1">{{ r }}</span>
-            <button class="text-pebble-text-dim hover:text-red-400 text-sm" @click="removeRoot(i)">✕</button>
+            <button class="text-pebble-text-dim hover:text-pebble-danger text-sm" @click="removeRoot(i)">✕</button>
           </div>
           <AppButton size="sm" variant="secondary" block @click="addRoot">＋ Add folder…</AppButton>
         </div>
@@ -255,7 +255,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         {{ (progress?.dirs ?? 0).toLocaleString() }} folders · {{ (progress?.files ?? 0).toLocaleString() }} files
         <span v-if="(progress?.reusedDirs ?? 0) > 0"> · {{ (progress?.reusedDirs ?? 0).toLocaleString() }} reused</span>
       </div>
-      <div class="text-[11px] text-pebble-text-dim max-w-lg truncate">{{ progress?.currentPath }}</div>
+      <div class="text-2xs text-pebble-text-dim max-w-lg truncate">{{ progress?.currentPath }}</div>
     </div>
 
     <!-- Results -->
@@ -266,7 +266,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <span class="text-xs text-pebble-text-dim whitespace-nowrap">Similarity ≥</span>
           <AppSlider class="flex-1" :min="30" :max="100" v-model="threshold" unit="%" />
         </div>
-        <div class="flex rounded-lg bg-pebble-surface border border-pebble-border p-0.5 text-[11px]">
+        <div class="flex rounded-lg bg-pebble-surface border border-pebble-border p-0.5 text-2xs">
           <button v-for="s in (['all','within','across'] as const)" :key="s" @click="scopeFilter = s"
                   :class="['px-2.5 py-1 rounded-md capitalize', scopeFilter === s ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">{{ s }}</button>
         </div>
@@ -278,7 +278,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <option v-for="o in MATCH_OPTS" :key="o.v" :value="o.v">{{ o.label }}</option>
         </select>
         <div class="flex-1" />
-        <div class="text-[11px] text-pebble-text-dim tabular-nums">
+        <div class="text-2xs text-pebble-text-dim tabular-nums">
           {{ stats?.dirs.toLocaleString() }} folders · {{ stats?.files.toLocaleString() }} files · scan {{ stats?.scanMs }}ms
           <span v-if="stats?.cacheHit"> · reused {{ reusePct }}%</span>
         </div>
@@ -289,7 +289,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <button v-for="t in (['folders','files'] as const)" :key="t" @click="tab = t"
                 :class="['pb-2 capitalize', tab === t ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim']">
           Duplicate {{ t }}
-          <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-pebble-surface-2">{{ t === 'folders' ? shownPairs.length : shownFiles.length }}</span>
+          <span class="ml-1 text-2xs px-1.5 py-0.5 rounded-full bg-pebble-surface-2">{{ t === 'folders' ? shownPairs.length : shownFiles.length }}</span>
         </button>
       </div>
 
@@ -299,22 +299,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <template #default="{ item }">
             <div class="mx-0 my-1 rounded-xl border border-pebble-border bg-pebble-surface p-3 flex items-center gap-3 h-[80px]">
               <div class="shrink-0 w-14 text-center">
-                <div class="text-lg font-bold" :class="item.sim >= 0.99 ? 'text-green-400' : item.sim >= 0.85 ? 'text-pebble-accent' : 'text-amber-400'">{{ Math.round(item.sim * 100) }}%</div>
-                <div class="text-[9px] text-pebble-text-dim">{{ item.recShared }} shared</div>
+                <div class="text-lg font-bold" :class="item.sim >= 0.99 ? 'text-pebble-success' : item.sim >= 0.85 ? 'text-pebble-accent' : 'text-pebble-warning'">{{ Math.round(item.sim * 100) }}%</div>
+                <div class="text-2xs text-pebble-text-dim">{{ item.recShared }} shared</div>
               </div>
-              <span class="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium"
-                    :class="item.scope === 'across' ? 'bg-sky-500/20 text-sky-300' : 'bg-amber-500/20 text-amber-300'">
+              <span class="shrink-0 text-2xs px-2 py-0.5 rounded-full font-medium"
+                    :class="item.scope === 'across' ? 'bg-pebble-accent-soft/20 text-pebble-accent-soft' : 'bg-pebble-warning/20 text-pebble-warning'">
                 {{ item.scope === 'across' ? '↔ across drives' : '⊂ within drive' }}
               </span>
               <div class="min-w-0 flex-1 space-y-1">
                 <button class="block w-full text-left group" @click="openFolder(item.a.path)" :title="`Open ${item.a.path} in Finder`">
-                  <span class="text-[10px] text-pebble-text-dim">duplicate ({{ item.a.recFiles }} files) →</span>
+                  <span class="text-2xs text-pebble-text-dim">duplicate ({{ item.a.recFiles }} files) →</span>
                   <span class="text-sm truncate block group-hover:text-pebble-accent">
                     <span class="inline-block h-2 w-2 rounded-full mr-1 align-middle" :style="{ background: ROOT_HUES[item.a.root % ROOT_HUES.length] }" />{{ item.a.path }}
                   </span>
                 </button>
                 <button class="block w-full text-left group" @click="openFolder(item.b.path)" :title="`Open ${item.b.path} in Finder`">
-                  <span class="text-[10px] text-pebble-text-dim">also in ({{ item.b.recFiles }} files) →</span>
+                  <span class="text-2xs text-pebble-text-dim">also in ({{ item.b.recFiles }} files) →</span>
                   <span class="text-xs truncate block text-pebble-text-dim group-hover:text-pebble-accent">
                     <span class="inline-block h-2 w-2 rounded-full mr-1 align-middle" :style="{ background: ROOT_HUES[item.b.root % ROOT_HUES.length] }" />{{ item.b.path }}
                   </span>
@@ -331,13 +331,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <VirtualList :items="shownFiles" :item-height="64" class="px-4 py-2">
           <template #default="{ item }">
             <div class="mx-0 my-1 rounded-xl border border-pebble-border bg-pebble-surface px-3 py-2 flex items-center gap-3 h-[56px]">
-              <span class="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium"
-                    :class="item.scope === 'across' ? 'bg-sky-500/20 text-sky-300' : 'bg-amber-500/20 text-amber-300'">
+              <span class="shrink-0 text-2xs px-2 py-0.5 rounded-full font-medium"
+                    :class="item.scope === 'across' ? 'bg-pebble-accent-soft/20 text-pebble-accent-soft' : 'bg-pebble-warning/20 text-pebble-warning'">
                 {{ item.scope === 'across' ? '↔' : '⊂' }} {{ item.total }}×
               </span>
               <div class="min-w-0 flex-1">
-                <div class="text-sm truncate">{{ item.name }} <span class="text-[10px] text-pebble-text-dim">· {{ fmtSize(item.size) }}</span></div>
-                <div class="text-[11px] text-pebble-text-dim truncate">
+                <div class="text-sm truncate">{{ item.name }} <span class="text-2xs text-pebble-text-dim">· {{ fmtSize(item.size) }}</span></div>
+                <div class="text-2xs text-pebble-text-dim truncate">
                   <button v-for="(l, i) in item.locs.slice(0, 4)" :key="l.id" class="hover:text-pebble-accent" @click="revealFile(l.path, item.name)" :title="`Reveal ${item.name} in Finder`">
                     <span class="inline-block h-1.5 w-1.5 rounded-full mr-0.5 align-middle" :style="{ background: ROOT_HUES[l.root % ROOT_HUES.length] }" />{{ l.path }}{{ i < Math.min(item.locs.length, 4) - 1 ? '  ·  ' : '' }}
                   </button>

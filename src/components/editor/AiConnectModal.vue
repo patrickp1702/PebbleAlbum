@@ -63,11 +63,11 @@ function revealServer() { if (info.value) window.pebble.revealInExplorer(info.va
         <!-- Step 1: config -->
         <div>
           <div class="flex items-center justify-between mb-1">
-            <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim">1 · Add this MCP server to your agent</div>
+            <div class="text-2xs uppercase tracking-wider text-pebble-text-dim">1 · Add this MCP server to your agent</div>
             <AppButton size="sm" @click="copy(info.configJson, 'Config')">Copy config</AppButton>
           </div>
-          <pre class="pa-code max-h-52 overflow-auto text-[11px] leading-relaxed">{{ info.configJson }}</pre>
-          <p class="text-[10px] text-pebble-text-dim mt-1">
+          <pre class="pa-code max-h-52 overflow-auto text-2xs leading-relaxed">{{ info.configJson }}</pre>
+          <p class="text-2xs text-pebble-text-dim mt-1">
             Requires <b>Node.js</b> installed (the <code>node</code> command). Paste into your agent's MCP
             settings. <button class="underline hover:text-pebble-accent" @click="revealServer">Show server file</button>
           </p>
@@ -75,14 +75,14 @@ function revealServer() { if (info.value) window.pebble.revealInExplorer(info.va
 
         <!-- Step 2: pick a prompt -->
         <div>
-          <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim mb-1">2 · Give your agent a prompt — pick one</div>
+          <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-1">2 · Give your agent a prompt — pick one</div>
 
           <div class="rounded border border-pebble-border p-2 mb-2">
             <div class="flex items-center justify-between mb-1">
               <div class="text-xs"><b>⚡ Fast completion</b> <span class="text-pebble-text-dim">— efficient, fewest tool calls</span></div>
               <AppButton size="sm" @click="copy(promptFast, 'Fast prompt')">Copy</AppButton>
             </div>
-            <pre class="pa-code max-h-40 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed">{{ promptFast }}</pre>
+            <pre class="pa-code max-h-40 overflow-auto whitespace-pre-wrap text-2xs leading-relaxed">{{ promptFast }}</pre>
           </div>
 
           <div class="rounded border border-pebble-border p-2">
@@ -90,11 +90,11 @@ function revealServer() { if (info.value) window.pebble.revealInExplorer(info.va
               <div class="text-xs"><b>🔬 Deep analysis &amp; complete</b> <span class="text-pebble-text-dim">— magazine-quality, thorough</span></div>
               <AppButton size="sm" @click="copy(promptDeep, 'Deep prompt')">Copy</AppButton>
             </div>
-            <pre class="pa-code max-h-40 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed">{{ promptDeep }}</pre>
+            <pre class="pa-code max-h-40 overflow-auto whitespace-pre-wrap text-2xs leading-relaxed">{{ promptDeep }}</pre>
           </div>
         </div>
 
-        <p class="text-[11px] text-pebble-text-dim">
+        <p class="text-2xs text-pebble-text-dim">
           3 · The agent will design <b>{{ projectName }}</b>. When it's done, <b>reload the project</b>
           here to see the result. Projects live in <code>{{ info.projectsFolder }}</code>.
         </p>

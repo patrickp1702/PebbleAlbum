@@ -129,13 +129,13 @@ function addPage() {
           <span v-else class="text-xl animate-pulse">▱</span>
           <!-- Amber badge: images assigned to this page but not placed in the layout. -->
           <span v-if="unplacedCount(p) > 0"
-                class="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-400 text-black text-[10px] font-bold flex items-center justify-center shadow"
+                class="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-pebble-warning text-black text-2xs font-bold flex items-center justify-center shadow"
                 :title="`${unplacedCount(p)} image(s) assigned but not placed`">
             {{ unplacedCount(p) }}
           </span>
         </div>
-        <div class="flex items-center justify-between px-2 py-1 text-[10px]"
-             :class="unplacedCount(p) > 0 ? 'text-amber-300' : ''">
+        <div class="flex items-center justify-between px-2 py-1 text-2xs"
+             :class="unplacedCount(p) > 0 ? 'text-pebble-warning' : ''">
           <span>{{ i + 1 }} · {{ badge[p.type] }}</span>
           <span class="flex gap-0.5">
             <span v-if="p.proverb" title="Has proverb">“”</span>
@@ -152,11 +152,11 @@ function addPage() {
     <Teleport to="body">
       <div v-if="menu" class="fixed inset-0 z-[200]" @click="closeMenu" @contextmenu.prevent="closeMenu">
         <div class="absolute pa-panel text-xs w-44 py-1 shadow-2xl" :style="{ left: menu.x + 'px', top: menu.y + 'px' }" @click.stop>
-          <button class="block w-full text-left px-3 py-2 hover:bg-white/5" @click="project.duplicatePage(menu.index); editor.requestRender(); closeMenu()">Duplicate page</button>
-          <button class="block w-full text-left px-3 py-2 hover:bg-white/5" @click="editor.setPage(menu.index); closeMenu()">Go to page</button>
-          <button class="block w-full text-left px-3 py-2 hover:bg-white/5" @click="toggleLock(menu.index); closeMenu()">{{ project.pages[menu.index]?.locked ? 'Unlock page' : 'Lock page' }}</button>
+          <button class="block w-full text-left px-3 py-2 hover:bg-pebble-hover" @click="project.duplicatePage(menu.index); editor.requestRender(); closeMenu()">Duplicate page</button>
+          <button class="block w-full text-left px-3 py-2 hover:bg-pebble-hover" @click="editor.setPage(menu.index); closeMenu()">Go to page</button>
+          <button class="block w-full text-left px-3 py-2 hover:bg-pebble-hover" @click="toggleLock(menu.index); closeMenu()">{{ project.pages[menu.index]?.locked ? 'Unlock page' : 'Lock page' }}</button>
           <div class="border-t border-pebble-border my-1" />
-          <button class="block w-full text-left px-3 py-2 hover:bg-white/5 text-red-300" @click="project.deletePage(menu.index); editor.requestRender(); closeMenu()">Delete page</button>
+          <button class="block w-full text-left px-3 py-2 hover:bg-pebble-hover text-pebble-danger" @click="project.deletePage(menu.index); editor.requestRender(); closeMenu()">Delete page</button>
         </div>
       </div>
     </Teleport>

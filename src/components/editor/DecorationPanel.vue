@@ -115,27 +115,27 @@ function addSvgSticker(s: SvgSticker) {
 <template>
   <div class="p-3 overflow-auto h-full space-y-4">
     <div>
-      <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim mb-2">Page patterns</div>
+      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-2">Page patterns</div>
       <div class="grid grid-cols-3 gap-2">
         <button v-for="p in drawable" :key="p.id" @click="togglePattern(p.id)"
-                :class="['rounded border px-2 py-2 text-[11px]', has(p.id) ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']">
+                :class="['rounded border px-2 py-2 text-2xs', has(p.id) ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']">
           {{ p.label }}
         </button>
       </div>
     </div>
 
     <div>
-      <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim mb-2">Frames &amp; corners</div>
+      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-2">Frames &amp; corners</div>
       <div class="grid grid-cols-3 gap-2">
         <button v-for="p in overlays" :key="p.id" @click="togglePattern(p.id)"
-                :class="['rounded border px-2 py-2 text-[11px]', has(p.id) ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']">
+                :class="['rounded border px-2 py-2 text-2xs', has(p.id) ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']">
           {{ p.label }}
         </button>
       </div>
     </div>
 
     <div>
-      <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim mb-2">Graphic stickers</div>
+      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-2">Graphic stickers</div>
       <div class="grid grid-cols-4 gap-1.5">
         <button v-for="s in SVG_STICKERS" :key="s.id" @click="addSvgSticker(s)" :title="s.label"
                 class="aspect-square rounded border border-pebble-border hover:border-pebble-accent bg-pebble-bg flex items-center justify-center p-1.5">
@@ -145,22 +145,22 @@ function addSvgSticker(s: SvgSticker) {
     </div>
 
     <div v-if="customStickers.length">
-      <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim mb-2">My stickers <span class="text-pebble-accent-soft">· cutouts</span></div>
+      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-2">My stickers <span class="text-pebble-accent-soft">· cutouts</span></div>
       <div class="grid grid-cols-4 gap-1.5">
         <div v-for="s in customStickers" :key="s.path" class="relative group">
           <button @click="addCustomSticker(s)" :title="s.name"
                   class="w-full aspect-square rounded border border-pebble-border hover:border-pebble-accent bg-pebble-bg flex items-center justify-center p-1.5 overflow-hidden">
             <img v-if="customThumbs[s.path]" :src="customThumbs[s.path]" :alt="s.name" class="max-h-full max-w-full object-contain pointer-events-none" />
           </button>
-          <button class="absolute -top-1 -right-1 hidden group-hover:flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white text-[9px]"
+          <button class="absolute -top-1 -right-1 hidden group-hover:flex h-4 w-4 items-center justify-center rounded-full bg-pebble-danger text-white text-2xs"
                   title="Delete sticker" @click.stop="removeCustomSticker(s)">✕</button>
         </div>
       </div>
-      <p class="text-[10px] text-pebble-text-dim mt-1">Made with ✂ Cutout &amp; blend — available in every project.</p>
+      <p class="text-2xs text-pebble-text-dim mt-1">Made with ✂ Cutout &amp; blend — available in every project.</p>
     </div>
 
     <div>
-      <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim mb-2">
+      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-2">
         Emoji stickers <span v-if="themeStickers.length" class="text-pebble-accent-soft">· theme</span>
       </div>
       <div class="flex flex-wrap gap-1.5">
@@ -169,7 +169,7 @@ function addSvgSticker(s: SvgSticker) {
           {{ s }}
         </button>
       </div>
-      <p class="text-[10px] text-pebble-text-dim mt-2">Click to drop a sticker, then drag it into place. Select + Delete to remove.</p>
+      <p class="text-2xs text-pebble-text-dim mt-2">Click to drop a sticker, then drag it into place. Select + Delete to remove.</p>
     </div>
   </div>
 </template>

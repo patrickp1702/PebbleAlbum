@@ -99,8 +99,8 @@ async function doExport() {
         </div>
       </div>
 
-      <div v-if="warnings.length" class="pa-panel p-3 border-l-4 border-amber-500/60">
-        <div class="text-amber-300 text-sm font-medium mb-1">⚠ Print checklist ({{ warnings.length }})</div>
+      <div v-if="warnings.length" class="pa-panel p-3 border-l-4 border-pebble-warning/60">
+        <div class="text-pebble-warning text-sm font-medium mb-1">⚠ Print checklist ({{ warnings.length }})</div>
         <ul class="text-xs text-pebble-text-dim max-h-32 overflow-auto space-y-0.5">
           <li v-for="(w, i) in warnings" :key="i">Page {{ w.page }}: {{ w.message }}</li>
         </ul>

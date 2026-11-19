@@ -1,9 +1,91 @@
+/**
+ * style.css — the app-chrome design system (ONE source of truth).
+ * -----------------------------------------------------------------------------
+ * Semantic tokens live here as CSS variables and are mapped into Tailwind by
+ * tailwind.config.js (`bg-pebble-surface`, `text-pebble-text-dim`, …), so every
+ * component reads the same ramp. See docs/UI_REDESIGN.md for the rationale.
+ *
+ * Two families of variables exist — do not confuse them:
+ *   --ui-*        the APP CHROME (this file). Neutral grey ramp + one accent.
+ *   --pa-theme-*  the ALBUM theme (user content), injected at runtime by
+ *                 engine/themeEngine.ts `injectThemeVars`. Never styled here.
+ *
+ * Colour tokens are stored as space-separated RGB channels so Tailwind's
+ * opacity modifiers keep working (`bg-pebble-accent/15`).
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  /* Album-theme default (overwritten by injectThemeVars). User content. */
   --pa-theme-accent: #6C63FF;
+
+  /* --- Surface ramp: neutral greys, darkest = furthest back ---------------- */
+  --ui-canvas: 17 17 19;          /* #111113 work area behind the page       */
+  --ui-panel: 27 27 30;           /* #1B1B1E bars, side panels               */
+  --ui-raised: 37 37 41;          /* #252529 controls, cards, menus          */
+  --ui-hover: 46 46 51;           /* #2E2E33 hovered control / row           */
+  --ui-pressed: 56 56 62;         /* #38383E pressed / selected-neutral      */
+  --ui-border: 52 52 58;          /* #34343A hairlines                       */
+  --ui-border-strong: 92 92 102;  /* #5C5C66 control outlines (3:1 on panel) */
+
+  /* --- Text ramp (contrast on panel: 14.7 / 7.1 / 4.0) --------------------- */
+  --ui-text: 237 237 240;         /* #EDEDF0 primary                          */
+  --ui-text-dim: 166 166 176;     /* #A6A6B0 secondary (AA on every surface)  */
+  --ui-text-off: 122 122 133;     /* #7A7A85 disabled / placeholder only      */
+
+  /* --- The one accent: electric blue --------------------------------------- */
+  --ui-accent: 43 102 246;        /* #2B66F6 fills; white on it = 4.85:1      */
+  --ui-accent-hover: 56 113 250;  /* #3871FA                                  */
+  --ui-accent-pressed: 34 86 214; /* #2256D6                                  */
+  --ui-accent-text: 110 162 255;  /* #6EA2FF accent as TEXT/icon (6.8:1)      */
+  --ui-on-accent: 255 255 255;
+
+  /* --- Semantic ------------------------------------------------------------ */
+  --ui-success: 76 194 122;       /* #4CC27A */
+  --ui-warning: 240 180 74;       /* #F0B44A */
+  --ui-danger: 255 107 99;        /* #FF6B63 text/icon */
+  --ui-danger-fill: 214 59 52;    /* #D63B34 destructive button fill */
+
+  /* --- Shape, elevation, motion -------------------------------------------- */
+  --ui-radius-sm: 4px;            /* chips, small swatches */
+  --ui-radius: 6px;               /* controls */
+  --ui-radius-lg: 8px;            /* cards, panels */
+  --ui-radius-xl: 12px;           /* dialogs */
+  --ui-shadow-pop: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(0 0 0 / 0.3);
+  --ui-shadow-modal: 0 24px 64px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(0 0 0 / 0.35);
+  --ui-ease: cubic-bezier(0.2, 0, 0, 1);
+  --ui-dur: 120ms;
+
+  /* --- Density: control heights -------------------------------------------- */
+  --ui-h-sm: 28px;
+  --ui-h-md: 32px;
+  --ui-h-lg: 40px;
+
+  color-scheme: dark;
+}
+
+/* Light chrome (toggled via .light on <html>). Same roles, inverted ramp. */
+.light {
+  --ui-canvas: 226 226 230;
+  --ui-panel: 247 247 249;
+  --ui-raised: 255 255 255;
+  --ui-hover: 236 236 240;
+  --ui-pressed: 224 224 229;
+  --ui-border: 216 216 222;
+  --ui-border-strong: 140 140 150;
+  --ui-text: 24 24 27;
+  --ui-text-dim: 90 90 101;
+  --ui-text-off: 140 140 150;
+  --ui-accent: 31 90 232;
+  --ui-accent-hover: 43 102 246;
+  --ui-accent-pressed: 24 74 200;
+  --ui-accent-text: 31 90 232;
+  --ui-success: 22 128 66;
+  --ui-warning: 150 98 0;
+  --ui-danger: 200 40 34;
+  color-scheme: light;
 }
 
 html, body, #app {
@@ -12,33 +94,175 @@ html, body, #app {
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
-  background: #1A1A2E;
-  color: #E0E0E0;
+  /* No fonts are bundled and none are fetched: the platform UI face. */
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  background: rgb(var(--ui-canvas));
+  color: rgb(var(--ui-text));
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 
-/* Thin, dark scrollbars to match the pro-tool aesthetic. */
+/* Keyboard focus is always visible; mouse clicks do not leave a ring. */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid rgb(var(--ui-accent-text));
+  outline-offset: 1px;
+}
+
+::selection { background: rgb(var(--ui-accent) / 0.45); }
+
+/* Thin neutral scrollbars. */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2a3358; border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #394581; }
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--ui-pressed));
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--ui-border-strong)); background-clip: padding-box; }
+
+/* ---- Native form controls, restyled once for the whole app ---------------- */
+
+/* Range: 4px track with an accent fill up to the thumb (--pa-fill is set by
+   AppSlider; a bare <input type=range> simply shows an unfilled track). */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+  accent-color: rgb(var(--ui-accent));
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right,
+    rgb(var(--ui-accent)) 0 var(--pa-fill, 0%),
+    rgb(var(--ui-pressed)) var(--pa-fill, 0%) 100%);
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: rgb(var(--ui-text));
+  border: 2px solid rgb(var(--ui-panel));
+  box-shadow: 0 0 0 1px rgb(var(--ui-border-strong));
+  transition: transform var(--ui-dur) var(--ui-ease);
+}
+input[type='range']:hover::-webkit-slider-thumb { transform: scale(1.12); }
+input[type='range']:active::-webkit-slider-thumb { background: rgb(var(--ui-accent-text)); }
+input[type='range']:disabled { opacity: 0.4; cursor: not-allowed; }
+
+input[type='checkbox'], input[type='radio'] {
+  accent-color: rgb(var(--ui-accent));
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+input::placeholder, textarea::placeholder { color: rgb(var(--ui-text-off)); }
+
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
 
 @layer components {
+  /* Card / floating surface. */
   .pa-panel { @apply bg-pebble-surface border border-pebble-border rounded-lg; }
+
+  /* Text input / select. 32px tall, inset well, accent ring on focus. */
   .pa-input {
-    @apply bg-pebble-bg border border-pebble-border rounded px-3 py-2 text-sm text-pebble-text
-           focus:outline-none focus:ring-2 focus:ring-pebble-accent/60 transition;
+    @apply bg-pebble-bg border border-pebble-border rounded-md px-2.5 py-1.5 text-sm text-pebble-text
+           transition-colors hover:border-pebble-border-strong
+           focus:outline-none focus:border-pebble-accent focus:ring-1 focus:ring-pebble-accent
+           disabled:opacity-40;
   }
+
+  /* Small status chip. */
   .pa-chip {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium
-           bg-pebble-accent/15 text-pebble-accent-soft border border-pebble-accent/30;
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-medium
+           bg-pebble-accent/15 text-pebble-accent-soft;
   }
+
   .pa-code {
-    @apply block bg-pebble-bg border border-pebble-border rounded p-3 font-mono text-pebble-text;
+    @apply block bg-pebble-bg border border-pebble-border rounded-md p-3 font-mono text-pebble-text;
+  }
+
+  /* Section heading inside a panel: the hierarchy device (not a boxed card). */
+  .pa-section {
+    @apply text-2xs font-semibold uppercase tracking-wider text-pebble-text-dim;
+  }
+
+  /* Field label above/beside a control. */
+  .pa-label { @apply text-xs text-pebble-text-dim; }
+
+  /* Helper / hint copy: readable, never below 11px. */
+  .pa-hint { @apply text-2xs leading-snug text-pebble-text-dim; }
+
+  /* Top application bar shared by every screen. */
+  .pa-topbar {
+    @apply flex items-center gap-2 h-12 px-3 shrink-0 bg-pebble-surface border-b border-pebble-border text-sm;
+  }
+
+  /* Quiet square icon button (toolbar). Pair with a tooltip. */
+  .pa-iconbtn {
+    @apply inline-flex items-center justify-center h-8 w-8 shrink-0 rounded-md text-pebble-text-dim
+           transition-colors hover:bg-pebble-hover hover:text-pebble-text active:bg-pebble-pressed
+           disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-pebble-text-dim;
+  }
+
+  /* Neutral control button used inline in panels (secondary weight). */
+  .pa-btn {
+    @apply inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium
+           bg-pebble-surface-2 text-pebble-text border border-pebble-border
+           transition-colors hover:bg-pebble-hover hover:border-pebble-border-strong active:bg-pebble-pressed
+           disabled:opacity-40 disabled:hover:bg-pebble-surface-2;
+  }
+
+  /* Segmented control container + options (see ui/AppSegmented.vue). */
+  .pa-seg { @apply flex p-0.5 gap-0.5 rounded-md bg-pebble-bg border border-pebble-border; }
+  .pa-seg-item {
+    @apply flex-1 inline-flex items-center justify-center gap-1.5 h-7 px-2 rounded text-xs font-medium
+           text-pebble-text-dim transition-colors hover:text-pebble-text;
+  }
+  .pa-seg-item[aria-pressed='true'], .pa-seg-item.is-active {
+    @apply bg-pebble-accent text-pebble-on-accent;
+  }
+
+  /* Underline tab (panel tab bars). */
+  .pa-tab {
+    @apply relative inline-flex items-center justify-center gap-1.5 px-3 h-9 text-xs font-medium
+           text-pebble-text-dim transition-colors hover:text-pebble-text;
+  }
+  .pa-tab.is-active { @apply text-pebble-text; }
+  .pa-tab.is-active::after {
+    content: '';
+    @apply absolute left-2 right-2 bottom-0 h-0.5 rounded-full bg-pebble-accent;
+  }
+
+  /* Selectable tile (layout / filter / theme pickers). */
+  .pa-tile {
+    @apply rounded-md border border-pebble-border bg-pebble-surface-2 text-pebble-text-dim
+           transition-colors hover:border-pebble-border-strong hover:text-pebble-text;
+  }
+  .pa-tile.is-active { @apply border-pebble-accent text-pebble-text ring-1 ring-pebble-accent; }
+
+  /* Keyboard key cap for shortcut hints. */
+  .pa-kbd {
+    @apply inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded
+           border border-pebble-border bg-pebble-surface-2 font-mono text-2xs text-pebble-text-dim;
   }
 }
 
-/* Light mode overrides (toggled via .light on <html>). */
-.light body { background: #f4f5fb; color: #1a1a2e; }
+/* Shared route / overlay fade — short, no bounce. */
+.fade-enter-active, .fade-leave-active { transition: opacity var(--ui-dur) var(--ui-ease); }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}

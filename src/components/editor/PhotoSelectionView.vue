@@ -113,22 +113,22 @@ function cancel() { emit('update:open', false); }
             <template v-if="groups.length">· {{ groups.length }} similar group{{ groups.length === 1 ? '' : 's' }}</template>
           </div>
         </div>
-        <span v-if="analyzing" class="text-[11px] text-pebble-accent-soft flex items-center gap-1.5">
+        <span v-if="analyzing" class="text-2xs text-pebble-accent-soft flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-pebble-accent animate-ping"></span> Finding duplicates…
         </span>
         <div class="flex-1"></div>
-        <button class="h-9 px-4 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-white/5 transition" @click="cancel">Cancel</button>
+        <button class="h-9 px-4 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-pebble-hover transition" @click="cancel">Cancel</button>
         <button class="h-9 px-5 rounded-lg text-sm font-medium bg-pebble-accent text-white hover:brightness-110 transition" @click="apply">Done · keep {{ kept }}</button>
       </header>
 
       <!-- Toolbar -->
       <div v-if="groups.length || notice" class="shrink-0 px-6 py-2 flex items-center gap-3 border-b border-pebble-border/60 text-xs">
         <template v-if="groups.length">
-          <button class="px-2.5 py-1 rounded-md bg-pebble-surface-2 hover:bg-white/10 transition" @click="keepBestEverywhere">✨ Keep best of every group</button>
-          <button class="px-2.5 py-1 rounded-md bg-pebble-surface-2 hover:bg-white/10 transition" @click="selectAll">Keep all</button>
+          <button class="px-2.5 py-1 rounded-md bg-pebble-surface-2 hover:bg-pebble-hover transition" @click="keepBestEverywhere">✨ Keep best of every group</button>
+          <button class="px-2.5 py-1 rounded-md bg-pebble-surface-2 hover:bg-pebble-hover transition" @click="selectAll">Keep all</button>
           <span class="text-pebble-text-dim">Best shot is pre-selected — click any photo to change.</span>
         </template>
-        <span v-if="notice" class="text-amber-300/90">{{ notice }}</span>
+        <span v-if="notice" class="text-pebble-warning/90">{{ notice }}</span>
       </div>
 
       <!-- Body -->
@@ -137,12 +137,12 @@ function cancel() { emit('update:open', false); }
 
         <!-- Duplicate groups -->
         <section v-if="groups.length">
-          <div class="text-[11px] font-semibold uppercase tracking-wider text-pebble-text-dim mb-3">Similar shots ({{ groups.length }} groups · {{ dupTotal }} photos)</div>
+          <div class="text-2xs font-semibold uppercase tracking-wider text-pebble-text-dim mb-3">Similar shots ({{ groups.length }} groups · {{ dupTotal }} photos)</div>
           <div class="space-y-4">
             <div v-for="g in groups" :key="g.id" class="rounded-xl border border-pebble-border bg-pebble-surface/60 p-4">
               <div class="flex items-center justify-between mb-3">
                 <span class="text-xs text-pebble-text-dim">{{ g.members.length }} similar photos</span>
-                <div class="flex gap-3 text-[11px]">
+                <div class="flex gap-3 text-2xs">
                   <button class="text-pebble-accent-soft hover:text-pebble-accent" @click="keepBestOnly(g)">Keep best only</button>
                   <button class="text-pebble-text-dim hover:text-pebble-text" @click="keepAll(g)">Keep all</button>
                 </div>
@@ -156,12 +156,12 @@ function cancel() { emit('update:open', false); }
                     <div v-else class="w-44 h-32 bg-pebble-surface-2 animate-pulse" />
                     <span class="absolute top-2 right-2 w-6 h-6 rounded-full grid place-items-center text-[12px] border-2 transition"
                           :class="selected[m] ? 'bg-pebble-accent border-pebble-accent text-white' : 'bg-black/40 border-white/70 text-transparent'">✓</span>
-                    <span v-if="m === g.suggested" class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-pebble-accent/90 text-white text-[10px] font-semibold shadow">★ Best</span>
+                    <span v-if="m === g.suggested" class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-pebble-accent/90 text-white text-2xs font-semibold shadow">★ Best</span>
                   </div>
                   <div class="px-2 py-1.5">
-                    <div class="truncate text-[10px] text-pebble-text-dim" :title="m">{{ fileOf(m) }}</div>
+                    <div class="truncate text-2xs text-pebble-text-dim" :title="m">{{ fileOf(m) }}</div>
                     <div v-if="flags(m, g).length" class="flex flex-wrap gap-1 mt-1">
-                      <span v-for="f in flags(m, g)" :key="f" class="px-1.5 rounded-full text-[9px] bg-amber-500/20 text-amber-300 capitalize">{{ f }}</span>
+                      <span v-for="f in flags(m, g)" :key="f" class="px-1.5 rounded-full text-2xs bg-pebble-warning/20 text-pebble-warning capitalize">{{ f }}</span>
                     </div>
                   </div>
                 </button>
@@ -172,7 +172,7 @@ function cancel() { emit('update:open', false); }
 
         <!-- Other photos -->
         <section v-if="ungrouped.length">
-          <div class="text-[11px] font-semibold uppercase tracking-wider text-pebble-text-dim mb-3">
+          <div class="text-2xs font-semibold uppercase tracking-wider text-pebble-text-dim mb-3">
             {{ groups.length ? 'All other photos' : 'All photos' }} ({{ ungrouped.length }})
           </div>
           <div class="grid gap-2.5 grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
@@ -181,7 +181,7 @@ function cancel() { emit('update:open', false); }
                     :class="selected[r.relativePath] ? 'ring-pebble-accent' : 'ring-transparent opacity-50 hover:opacity-90'">
               <img v-if="src(r.relativePath)" :src="src(r.relativePath)" class="w-full h-full object-cover" :alt="fileOf(r.relativePath)" />
               <div v-else class="w-full h-full animate-pulse" />
-              <span class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full grid place-items-center text-[10px] border-2 transition"
+              <span class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full grid place-items-center text-2xs border-2 transition"
                     :class="selected[r.relativePath] ? 'bg-pebble-accent border-pebble-accent text-white' : 'bg-black/40 border-white/70 text-transparent'">✓</span>
             </button>
           </div>

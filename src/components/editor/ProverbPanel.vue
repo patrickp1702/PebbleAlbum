@@ -93,22 +93,22 @@ function removeProverb(id: string) {
 <template>
   <div class="p-3 flex flex-col gap-3 h-full overflow-auto">
     <div class="flex items-center justify-between">
-      <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim">Proverbs on this page</div>
+      <div class="text-2xs uppercase tracking-wider text-pebble-text-dim">Proverbs on this page</div>
       <AppButton size="sm" @click="addProverb('Your proverb here')">+ Add</AppButton>
     </div>
 
     <div v-if="proverbBlocks.length" class="space-y-1.5">
       <div v-for="p in proverbBlocks" :key="p.id"
-           class="flex items-center gap-2 rounded bg-pebble-bg p-1.5 cursor-pointer hover:bg-white/5 transition"
+           class="flex items-center gap-2 rounded bg-pebble-bg p-1.5 cursor-pointer hover:bg-pebble-hover transition"
            :class="editor.selectedObjectId === p.id ? 'ring-1 ring-pebble-accent' : ''"
            @click="selectProverb(p.id)">
         <span class="flex-1 truncate text-[12px] italic" :style="{ fontFamily: p.style.fontFamily }">{{ p.content || 'Empty proverb' }}</span>
-        <button class="px-1.5 py-1 rounded text-pebble-text-dim hover:text-pebble-accent hover:bg-white/5" title="Edit" @click.stop="selectProverb(p.id)">✎</button>
-        <button class="px-1.5 py-1 rounded text-pebble-text-dim hover:text-red-400 hover:bg-white/5" title="Remove" @click.stop="removeProverb(p.id)">✕</button>
+        <button class="px-1.5 py-1 rounded text-pebble-text-dim hover:text-pebble-accent hover:bg-pebble-hover" title="Edit" @click.stop="selectProverb(p.id)">✎</button>
+        <button class="px-1.5 py-1 rounded text-pebble-text-dim hover:text-pebble-danger hover:bg-pebble-hover" title="Remove" @click.stop="removeProverb(p.id)">✕</button>
       </div>
-      <p class="text-[10px] text-pebble-text-dim">Click a proverb to edit its font, size, colour & rotation. Drag it on the page to reposition.</p>
+      <p class="text-2xs text-pebble-text-dim">Click a proverb to edit its font, size, colour & rotation. Drag it on the page to reposition.</p>
     </div>
-    <p v-else class="text-[11px] text-pebble-text-dim">No proverbs yet. Add one, or pick a suggestion below.</p>
+    <p v-else class="text-2xs text-pebble-text-dim">No proverbs yet. Add one, or pick a suggestion below.</p>
 
     <div class="flex-1 space-y-3">
       <div v-if="themeSuggestions.length">

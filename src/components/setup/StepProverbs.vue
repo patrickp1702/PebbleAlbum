@@ -38,7 +38,7 @@ function add(p: string) { text.value = text.value ? `${text.value}\n${p}` : p; s
     <AppModal v-model:open="libOpen" title="Proverb library" width="640px">
       <input v-model="query" class="pa-input w-full mb-3" placeholder="Search love, family, wedding…" />
       <div class="space-y-1 max-h-80 overflow-auto">
-        <button v-for="r in results" :key="r.text" class="block w-full text-left px-3 py-2 rounded hover:bg-white/5 text-sm"
+        <button v-for="r in results" :key="r.text" class="block w-full text-left px-3 py-2 rounded hover:bg-pebble-hover text-sm"
                 @click="add(r.text)">
           <span class="pa-chip mr-2">{{ r.category }}</span>{{ r.text }}
         </button>

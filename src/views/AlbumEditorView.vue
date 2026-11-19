@@ -272,19 +272,19 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
       <span class="text-pebble-text-dim truncate max-w-[12rem]">{{ project.meta?.name }}</span>
 
       <div class="flex items-center gap-1 ml-4">
-        <AppTooltip :text="history.undoLabel"><button class="px-2 py-1 rounded hover:bg-white/5 disabled:opacity-30" :disabled="!history.canUndo" @click="history.undo()">↶</button></AppTooltip>
-        <AppTooltip :text="history.redoLabel"><button class="px-2 py-1 rounded hover:bg-white/5 disabled:opacity-30" :disabled="!history.canRedo" @click="history.redo()">↷</button></AppTooltip>
+        <AppTooltip :text="history.undoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canUndo" @click="history.undo()">↶</button></AppTooltip>
+        <AppTooltip :text="history.redoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canRedo" @click="history.redo()">↷</button></AppTooltip>
       </div>
 
       <div class="flex items-center gap-1 ml-4">
-        <button class="px-2 py-1 rounded hover:bg-white/5" @click="editor.zoomOut()">−</button>
+        <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomOut()">−</button>
         <span class="w-12 text-center tabular-nums">{{ editor.zoomPercent }}%</span>
-        <button class="px-2 py-1 rounded hover:bg-white/5" @click="editor.zoomIn()">＋</button>
+        <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomIn()">＋</button>
       </div>
 
       <div class="flex-1 text-center text-pebble-text-dim">{{ pageLabel }}</div>
 
-      <span class="text-xs mr-2" :class="project.saveState === 'saved' ? 'text-green-400' : 'text-pebble-text-dim'">
+      <span class="text-xs mr-2" :class="project.saveState === 'saved' ? 'text-pebble-success' : 'text-pebble-text-dim'">
         {{ project.saveState === 'saving' ? 'Saving…' : project.saveState === 'saved' ? 'Saved' : project.dirty ? 'Unsaved' : '' }}
       </span>
       <AppButton size="sm" variant="ghost" @click="showStats = true">📊</AppButton>
@@ -306,7 +306,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
         <!-- Bottom tool panel -->
         <div class="h-48 bg-pebble-surface border-t border-pebble-border flex flex-col">
           <nav class="flex items-center text-xs border-b border-pebble-border">
-            <span class="px-3 text-[10px] uppercase tracking-wider text-pebble-text-dim/70">Album</span>
+            <span class="px-3 text-2xs uppercase tracking-wider text-pebble-text-dim/70">Album</span>
             <button v-for="p in bottomPanels" :key="p" @click="editor.bottomPanel = p"
                     :class="['px-4 py-2 capitalize', editor.bottomPanel === p ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim']">{{ p }}</button>
             <button class="ml-auto mr-3 px-3 py-1 rounded bg-pebble-accent/20 text-pebble-accent-soft hover:bg-pebble-accent/30"
@@ -369,14 +369,14 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
             <div class="text-sm font-medium">♪ Slideshow music</div>
             <button class="h-7 px-2 rounded bg-pebble-surface-2 border border-pebble-border text-xs" @click="showMusic = false">✕</button>
           </div>
-          <p class="text-[11px] text-pebble-text-dim">Pick one or more tracks — they play in order and loop back to the first when the show is longer than the music. Plays with ▶ and in the exported video.</p>
+          <p class="text-2xs text-pebble-text-dim">Pick one or more tracks — they play in order and loop back to the first when the show is longer than the music. Plays with ▶ and in the exported video.</p>
           <div v-if="!musicTracks.length" class="text-xs text-pebble-text-dim py-2">No tracks found.</div>
           <button v-for="t in musicTracks" :key="t.path" @click="toggleTrack(t.path)"
                   class="w-full flex items-center gap-2 px-2 py-1.5 rounded border text-left text-sm"
                   :class="selectedMusic.includes(t.path) ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50'">
             <span class="w-5 text-center text-xs tabular-nums text-pebble-accent">{{ selectedMusic.indexOf(t.path) >= 0 ? selectedMusic.indexOf(t.path) + 1 : '' }}</span>
             <span class="flex-1 truncate">{{ t.name }}</span>
-            <span class="text-[10px] text-pebble-text-dim">{{ t.source === 'bundled' ? 'built-in' : 'my library' }}</span>
+            <span class="text-2xs text-pebble-text-dim">{{ t.source === 'bundled' ? 'built-in' : 'my library' }}</span>
           </button>
           <AppButton size="sm" variant="secondary" block @click="addMusicFiles">＋ Add music from computer…</AppButton>
         </div>
@@ -389,7 +389,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
         <div class="w-72 h-2 rounded-full bg-white/15 overflow-hidden">
           <div class="h-full bg-pebble-accent transition-all" :style="{ width: `${Math.min(100, (recording.sec / Math.max(1, recording.totalSec)) * 100)}%` }" />
         </div>
-        <p class="text-[11px] text-white/60 max-w-sm text-center">The video records the show in real time — exactly what you see, with your music. Keep this window visible.</p>
+        <p class="text-2xs text-white/60 max-w-sm text-center">The video records the show in real time — exactly what you see, with your music. Keep this window visible.</p>
         <AppButton size="sm" variant="ghost" @click="cancelRecording()">Cancel</AppButton>
       </div>
     </div>

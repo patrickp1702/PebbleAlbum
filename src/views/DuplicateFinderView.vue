@@ -179,9 +179,9 @@ async function doMove() {
 <template>
   <div class="h-full w-full flex flex-col bg-pebble-bg">
     <header class="h-14 shrink-0 flex items-center gap-3 px-5 border-b border-pebble-border">
-      <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-white/5" @click="router.push('/')">‹ Home</button>
+      <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-pebble-hover" @click="router.push('/')">‹ Home</button>
       <div class="font-semibold">Duplicate Finder</div>
-      <span v-if="analyzing" class="text-[11px] text-pebble-accent-soft truncate max-w-[280px]">{{ progressLabel }}</span>
+      <span v-if="analyzing" class="text-2xs text-pebble-accent-soft truncate max-w-[280px]">{{ progressLabel }}</span>
       <div class="flex-1"></div>
       <!-- view toggle -->
       <div v-if="records.length" class="flex rounded-lg bg-pebble-surface-2 p-0.5 text-xs">
@@ -196,7 +196,7 @@ async function doMove() {
 
     <!-- Live analysis progress -->
     <div v-if="analyzing" class="shrink-0 px-5 py-2.5 border-b border-pebble-border">
-      <div class="flex justify-between text-[11px] text-pebble-text-dim mb-1.5">
+      <div class="flex justify-between text-2xs text-pebble-text-dim mb-1.5">
         <span>{{ progressLabel }}</span>
         <span v-if="progress?.total">{{ progressPct }}%</span>
       </div>
@@ -210,25 +210,25 @@ async function doMove() {
     <!-- Controls: similarity strictness + collapse-all + counts -->
     <div v-if="records.length && !analyzing" class="shrink-0 px-5 py-2.5 border-b border-pebble-border flex items-center gap-x-5 gap-y-2 flex-wrap">
       <div class="flex items-center gap-2.5">
-        <span class="text-[11px] text-pebble-text-dim whitespace-nowrap">Match strictness</span>
-        <span class="text-[10px] text-pebble-text-dim">Loose</span>
+        <span class="text-2xs text-pebble-text-dim whitespace-nowrap">Match strictness</span>
+        <span class="text-2xs text-pebble-text-dim">Loose</span>
         <div class="w-40"><AppSlider v-model="strictness" :min="1" :max="10" :step="1" /></div>
-        <span class="text-[10px] text-pebble-text-dim">Strict</span>
-        <span class="text-[10px] text-pebble-text-dim/70 italic">{{ strictness >= 8 ? 'near-identical only' : strictness <= 3 ? 'loosely similar' : 'similar' }}</span>
+        <span class="text-2xs text-pebble-text-dim">Strict</span>
+        <span class="text-2xs text-pebble-text-dim/70 italic">{{ strictness >= 8 ? 'near-identical only' : strictness <= 3 ? 'loosely similar' : 'similar' }}</span>
       </div>
-      <span class="text-[11px] text-pebble-text-dim">
+      <span class="text-2xs text-pebble-text-dim">
         {{ groups.length }} set{{ groups.length === 1 ? '' : 's' }} · {{ blurry.length }} blurry · {{ otherPhotos.length }} unique
       </span>
       <div class="flex-1"></div>
-      <button v-if="groups.length" class="text-[11px] text-pebble-accent-soft hover:text-pebble-accent" @click="setAllCollapsed(!allCollapsed)">
+      <button v-if="groups.length" class="text-2xs text-pebble-accent-soft hover:text-pebble-accent" @click="setAllCollapsed(!allCollapsed)">
         {{ allCollapsed ? 'Expand all sets' : 'Collapse all sets' }}
       </button>
     </div>
 
     <div class="flex-1 overflow-auto p-5 space-y-6">
-      <div v-if="error" class="rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 px-4 py-3 text-sm flex items-center justify-between">
+      <div v-if="error" class="rounded-lg border border-pebble-danger/40 bg-pebble-danger/10 text-pebble-danger px-4 py-3 text-sm flex items-center justify-between">
         <span>{{ error }}</span>
-        <button class="underline hover:text-red-200" @click="analyze">Retry</button>
+        <button class="underline hover:text-pebble-danger" @click="analyze">Retry</button>
       </div>
 
       <div v-if="!folder" class="text-pebble-text-dim text-center mt-16">
@@ -239,37 +239,37 @@ async function doMove() {
 
       <!-- Duplicate groups -->
       <section v-if="groups.length">
-        <div class="text-[11px] font-semibold uppercase tracking-wider text-pebble-text-dim mb-3">Duplicate / similar sets ({{ groups.length }})</div>
+        <div class="text-2xs font-semibold uppercase tracking-wider text-pebble-text-dim mb-3">Duplicate / similar sets ({{ groups.length }})</div>
         <div class="space-y-4">
           <div v-for="g in groups" :key="g.id" class="rounded-xl border border-pebble-border bg-pebble-surface/60 p-4">
             <div class="flex items-center justify-between mb-3 gap-3">
               <button class="flex items-center gap-2 min-w-0 text-left" @click="toggleCollapse(g.id)" :title="collapsed[g.id] ? 'Expand set' : 'Collapse set'">
                 <span class="text-pebble-text-dim inline-block transition-transform" :class="collapsed[g.id] ? '-rotate-90' : ''">▾</span>
                 <span class="text-xs text-pebble-text-dim truncate">
-                  {{ g.members.length }} similar · ★ Best is kept<span v-if="markedInGroup(g)" class="text-red-400"> · {{ markedInGroup(g) }} to move</span>
+                  {{ g.members.length }} similar · ★ Best is kept<span v-if="markedInGroup(g)" class="text-pebble-danger"> · {{ markedInGroup(g) }} to move</span>
                 </span>
               </button>
-              <div class="flex items-center gap-3 text-[11px] shrink-0">
+              <div class="flex items-center gap-3 text-2xs shrink-0">
                 <button class="text-pebble-accent-soft hover:text-pebble-accent" @click="markOthers(g)">Mark all but best</button>
                 <button class="text-pebble-text-dim hover:text-pebble-text" @click="clearGroup(g)">Clear</button>
                 <button class="text-pebble-text-dim hover:text-pebble-text" title="View this set full screen to compare" @click="openFullscreen(g)">⛶ Full screen</button>
               </div>
             </div>
-            <button v-if="collapsed[g.id]" class="text-[11px] text-pebble-accent-soft hover:text-pebble-accent" @click="toggleCollapse(g.id)">Show {{ g.members.length }} photos…</button>
+            <button v-if="collapsed[g.id]" class="text-2xs text-pebble-accent-soft hover:text-pebble-accent" @click="toggleCollapse(g.id)">Show {{ g.members.length }} photos…</button>
             <div v-else class="flex flex-wrap gap-3">
               <button v-for="m in g.members" :key="m" @click="toggle(m)"
                       class="relative rounded-xl overflow-hidden bg-pebble-surface-2 ring-2 transition text-left"
-                      :class="[view === 'large' ? '' : 'w-44', marked[m] ? 'ring-red-500' : 'ring-transparent hover:ring-pebble-accent/50']">
+                      :class="[view === 'large' ? '' : 'w-44', marked[m] ? 'ring-pebble-danger' : 'ring-transparent hover:ring-pebble-accent/50']">
                 <img v-if="view === 'large' ? bigSrc(m) : smallSrc(m)" :src="view === 'large' ? bigSrc(m) : smallSrc(m)"
                      class="object-contain bg-black/30" :class="view === 'large' ? 'max-h-[64vh] max-w-[44vw]' : 'w-44 h-32 object-cover'" />
                 <div v-else class="bg-pebble-surface-2 animate-pulse" :class="view === 'large' ? 'w-80 h-56' : 'w-44 h-32'" />
-                <span v-if="m === g.suggested" class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-pebble-accent/90 text-white text-[10px] font-semibold">★ Best</span>
-                <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold transition"
-                      :class="marked[m] ? 'bg-red-500 text-white' : 'bg-black/50 text-white/80'">{{ marked[m] ? '✓ Move' : 'Keep' }}</span>
+                <span v-if="m === g.suggested" class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-pebble-accent/90 text-white text-2xs font-semibold">★ Best</span>
+                <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-2xs font-semibold transition"
+                      :class="marked[m] ? 'bg-pebble-danger text-white' : 'bg-black/50 text-white/80'">{{ marked[m] ? '✓ Move' : 'Keep' }}</span>
                 <div class="px-2 py-1.5">
-                  <div class="truncate text-[10px] text-pebble-text-dim" :title="m">{{ fileOf(m) }}</div>
+                  <div class="truncate text-2xs text-pebble-text-dim" :title="m">{{ fileOf(m) }}</div>
                   <div v-if="flags(m, g).length" class="flex flex-wrap gap-1 mt-1">
-                    <span v-for="f in flags(m, g)" :key="f" class="px-1.5 rounded-full text-[9px] bg-amber-500/20 text-amber-300 capitalize">{{ f }}</span>
+                    <span v-for="f in flags(m, g)" :key="f" class="px-1.5 rounded-full text-2xs bg-pebble-warning/20 text-pebble-warning capitalize">{{ f }}</span>
                   </div>
                 </div>
               </button>
@@ -283,28 +283,28 @@ async function doMove() {
         <div class="flex items-center gap-4 mb-3">
           <button class="flex items-center gap-2" @click="toggleCollapse('__blurry')">
             <span class="text-pebble-text-dim inline-block transition-transform" :class="collapsed['__blurry'] ? '-rotate-90' : ''">▾</span>
-            <span class="text-[11px] font-semibold uppercase tracking-wider text-amber-300/80">Possibly blurry ({{ blurry.length }})</span>
+            <span class="text-2xs font-semibold uppercase tracking-wider text-pebble-warning/80">Possibly blurry ({{ blurry.length }})</span>
           </button>
-          <button class="text-[11px] text-pebble-accent-soft hover:text-pebble-accent" @click="blurry.forEach((r) => marked[r.relativePath] = true)">Mark all</button>
-          <button class="text-[11px] text-pebble-text-dim hover:text-pebble-text" @click="blurry.forEach((r) => marked[r.relativePath] = false)">Clear</button>
+          <button class="text-2xs text-pebble-accent-soft hover:text-pebble-accent" @click="blurry.forEach((r) => marked[r.relativePath] = true)">Mark all</button>
+          <button class="text-2xs text-pebble-text-dim hover:text-pebble-text" @click="blurry.forEach((r) => marked[r.relativePath] = false)">Clear</button>
         </div>
         <div v-if="!collapsed['__blurry']" class="flex flex-wrap gap-3">
           <button v-for="r in blurry" :key="r.relativePath" @click="toggle(r.relativePath)"
                   class="relative w-40 rounded-xl overflow-hidden bg-pebble-surface-2 ring-2 transition text-left"
-                  :class="marked[r.relativePath] ? 'ring-red-500' : 'ring-transparent hover:ring-pebble-accent/50'">
+                  :class="marked[r.relativePath] ? 'ring-pebble-danger' : 'ring-transparent hover:ring-pebble-accent/50'">
             <img v-if="smallSrc(r.relativePath)" :src="smallSrc(r.relativePath)" class="w-40 h-28 object-cover" />
             <div v-else class="w-40 h-28 animate-pulse" />
-            <span class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-amber-500/80 text-white text-[10px] font-semibold">blurry</span>
-            <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                  :class="marked[r.relativePath] ? 'bg-red-500 text-white' : 'bg-black/50 text-white/80'">{{ marked[r.relativePath] ? '✓ Move' : 'Keep' }}</span>
-            <div class="px-2 py-1.5"><div class="truncate text-[10px] text-pebble-text-dim" :title="r.relativePath">{{ fileOf(r.relativePath) }}</div></div>
+            <span class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-pebble-warning/80 text-white text-2xs font-semibold">blurry</span>
+            <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-2xs font-semibold"
+                  :class="marked[r.relativePath] ? 'bg-pebble-danger text-white' : 'bg-black/50 text-white/80'">{{ marked[r.relativePath] ? '✓ Move' : 'Keep' }}</span>
+            <div class="px-2 py-1.5"><div class="truncate text-2xs text-pebble-text-dim" :title="r.relativePath">{{ fileOf(r.relativePath) }}</div></div>
           </button>
         </div>
       </section>
 
       <!-- All other (unique, acceptably sharp) -->
       <section v-if="otherPhotos.length">
-        <div class="text-[11px] font-semibold uppercase tracking-wider text-pebble-text-dim mb-3">All other photos ({{ otherPhotos.length }})</div>
+        <div class="text-2xs font-semibold uppercase tracking-wider text-pebble-text-dim mb-3">All other photos ({{ otherPhotos.length }})</div>
         <div class="grid gap-2.5 grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
           <div v-for="r in otherPhotos" :key="r.relativePath" class="aspect-square rounded-lg overflow-hidden bg-pebble-surface-2">
             <img v-if="smallSrc(r.relativePath)" :src="smallSrc(r.relativePath)" class="w-full h-full object-cover" />
@@ -327,26 +327,26 @@ async function doMove() {
       <div v-if="fullscreenGroup" class="fixed inset-0 z-[200] bg-black/95 flex flex-col">
         <div class="h-14 shrink-0 flex items-center gap-3 px-5 border-b border-white/10 text-white">
           <div class="font-semibold">Compare set — {{ fullscreenGroup.members.length }} similar</div>
-          <span class="text-[11px] text-white/50 hidden sm:inline">Click a photo to mark it for moving · Esc to close</span>
+          <span class="text-2xs text-white/50 hidden sm:inline">Click a photo to mark it for moving · Esc to close</span>
           <div class="flex-1"></div>
-          <button class="text-[11px] text-pebble-accent-soft hover:text-white" @click="markOthers(fullscreenGroup)">Mark all but best</button>
-          <button class="text-[11px] text-white/60 hover:text-white" @click="clearGroup(fullscreenGroup)">Clear</button>
-          <button class="h-8 px-3 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10" @click="closeFullscreen">✕ Close</button>
+          <button class="text-2xs text-pebble-accent-soft hover:text-white" @click="markOthers(fullscreenGroup)">Mark all but best</button>
+          <button class="text-2xs text-white/60 hover:text-white" @click="clearGroup(fullscreenGroup)">Clear</button>
+          <button class="h-8 px-3 rounded-lg text-sm text-white/80 hover:text-white hover:bg-pebble-hover" @click="closeFullscreen">✕ Close</button>
         </div>
         <div class="flex-1 overflow-auto p-5">
           <div class="flex flex-wrap gap-4 justify-center items-start">
             <button v-for="m in fullscreenGroup.members" :key="m" @click="toggle(m)"
                     class="relative rounded-xl overflow-hidden bg-pebble-surface-2 ring-2 transition"
-                    :class="marked[m] ? 'ring-red-500' : 'ring-transparent hover:ring-pebble-accent/60'">
+                    :class="marked[m] ? 'ring-pebble-danger' : 'ring-transparent hover:ring-pebble-accent/60'">
               <img v-if="bigSrc(m)" :src="bigSrc(m)" class="object-contain bg-black max-h-[78vh] max-w-[88vw]" />
               <div v-else class="w-[40vw] h-[60vh] bg-pebble-surface-2 animate-pulse" />
               <span v-if="m === fullscreenGroup.suggested" class="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-pebble-accent/90 text-white text-xs font-semibold">★ Best</span>
               <span class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-semibold"
-                    :class="marked[m] ? 'bg-red-500 text-white' : 'bg-black/60 text-white/85'">{{ marked[m] ? '✓ Move' : 'Keep' }}</span>
+                    :class="marked[m] ? 'bg-pebble-danger text-white' : 'bg-black/60 text-white/85'">{{ marked[m] ? '✓ Move' : 'Keep' }}</span>
               <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
-                <div class="truncate text-[11px] text-white/85" :title="m">{{ fileOf(m) }}</div>
+                <div class="truncate text-2xs text-white/85" :title="m">{{ fileOf(m) }}</div>
                 <div v-if="flags(m, fullscreenGroup).length" class="flex flex-wrap gap-1 mt-1">
-                  <span v-for="f in flags(m, fullscreenGroup)" :key="f" class="px-1.5 rounded-full text-[9px] bg-amber-500/30 text-amber-200 capitalize">{{ f }}</span>
+                  <span v-for="f in flags(m, fullscreenGroup)" :key="f" class="px-1.5 rounded-full text-2xs bg-pebble-warning/30 text-pebble-warning capitalize">{{ f }}</span>
                 </div>
               </div>
             </button>

@@ -794,7 +794,7 @@ onBeforeUnmount(() => {
       <div class="px-3 py-2.5 border-b border-pebble-border flex items-center justify-between">
         <div>
           <div class="text-sm font-medium">{{ inContext ? '✎ Erase / restore' : '✂ Cutout studio' }}</div>
-          <div class="text-[10px] text-pebble-text-dim truncate max-w-[180px]">{{ filename }}</div>
+          <div class="text-2xs text-pebble-text-dim truncate max-w-[180px]">{{ filename }}</div>
         </div>
         <button class="h-7 px-2 rounded bg-pebble-surface-2 border border-pebble-border text-xs hover:border-pebble-accent" @click="requestClose">✕</button>
       </div>
@@ -804,7 +804,7 @@ onBeforeUnmount(() => {
 
         <div>
           <div class="text-xs text-pebble-text-dim mb-1">Brush</div>
-          <div class="flex rounded bg-pebble-bg p-0.5 text-[11px]">
+          <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
             <button v-for="t in (['erase','restore','pan'] as const)" :key="t" @click="tool = t"
                     :class="['flex-1 py-1 rounded capitalize', tool === t ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">
               {{ t === 'erase' ? '⌫ Erase' : t === 'restore' ? '↺ Restore' : '✋ Pan' }}
@@ -815,7 +815,7 @@ onBeforeUnmount(() => {
         <AppSlider label="Size" :min="4" :max="500" :model-value="brushSize" unit="px" @update:model-value="setBrushSize" />
         <AppSlider label="Opacity" :min="1" :max="100" v-model="brushOpacity" unit="%" />
         <AppSlider label="Hardness" :min="0" :max="100" v-model="brushHardness" unit="%" />
-        <p class="text-[10px] text-pebble-text-dim leading-relaxed">
+        <p class="text-2xs text-pebble-text-dim leading-relaxed">
           Low opacity + soft hardness, then brush the edges/corners in passes —
           each pass fades a little more, blending the photo into the page.
           100% opacity erases outright; Restore paints the photo back.
@@ -843,7 +843,7 @@ onBeforeUnmount(() => {
 
         <div class="pt-2 border-t border-pebble-border space-y-2">
           <AppButton v-if="inContext" size="sm" block :disabled="saving || loading" @click="applyMask">✓ Apply</AppButton>
-          <p v-if="inContext" class="text-[10px] text-pebble-text-dim -mt-1">Non-destructive: the original photo is kept, so you can reopen and restore anytime.</p>
+          <p v-if="inContext" class="text-2xs text-pebble-text-dim -mt-1">Non-destructive: the original photo is kept, so you can reopen and restore anytime.</p>
           <label class="text-xs block">Sticker name
             <input v-model="stickerName" class="pa-input w-full mt-1 py-1" placeholder="my sticker" />
           </label>

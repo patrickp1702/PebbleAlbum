@@ -60,12 +60,12 @@ function onDragStart(e: DragEvent, rec: ImageRecord) {
 <template>
   <div class="h-full flex flex-col">
     <div class="flex items-center gap-2 px-3 py-1.5 border-b border-pebble-border">
-      <div class="flex rounded bg-pebble-bg p-0.5 text-[11px]">
+      <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
         <button class="px-2 py-0.5 rounded" :class="filter === 'all' ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim'" @click="filter = 'all'">All</button>
         <button class="px-2 py-0.5 rounded" :class="filter === 'unused' ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim'" @click="filter = 'unused'">Unused</button>
       </div>
       <input v-model="query" class="pa-input py-0.5 text-xs flex-1 max-w-xs" placeholder="Search images…" />
-      <span class="text-[11px] text-pebble-text-dim">Click to open its page · drag onto a page to move/place</span>
+      <span class="text-2xs text-pebble-text-dim">Click to open its page · drag onto a page to move/place</span>
     </div>
     <div class="flex-1 overflow-x-auto overflow-y-hidden p-2">
       <div class="flex gap-2 h-full items-stretch">
@@ -75,9 +75,9 @@ function onDragStart(e: DragEvent, rec: ImageRecord) {
              :title="r.filename">
           <img v-if="thumbs[r.thumbnailPath]" :src="thumbs[r.thumbnailPath]" class="w-full h-[78%] object-cover pointer-events-none" />
           <div v-else class="w-full h-[78%] bg-pebble-surface-2 animate-pulse" />
-          <div class="px-1 py-0.5 text-[9px] truncate">{{ r.filename }}</div>
+          <div class="px-1 py-0.5 text-2xs truncate">{{ r.filename }}</div>
           <div v-if="r.usedOnPages.length" class="absolute top-1 left-1 pa-chip">p{{ pageIndexOf(r) + 1 }}</div>
-          <div v-else class="absolute top-1 left-1 pa-chip bg-amber-400/20 text-amber-300 border-amber-400/40">unused</div>
+          <div v-else class="absolute top-1 left-1 pa-chip bg-pebble-warning/20 text-pebble-warning border-pebble-warning/40">unused</div>
         </div>
         <div v-if="!list.length" class="text-pebble-text-dim text-xs self-center px-4">No images.</div>
       </div>

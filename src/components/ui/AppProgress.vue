@@ -5,11 +5,12 @@ defineProps<{ value: number; label?: string }>();
 
 <template>
   <div>
-    <div v-if="label" class="flex justify-between text-xs text-pebble-text-dim mb-1">
-      <span>{{ label }}</span><span>{{ Math.round(value) }}%</span>
+    <div v-if="label" class="flex justify-between text-xs text-pebble-text-dim mb-1.5">
+      <span>{{ label }}</span><span class="tabular-nums text-pebble-text">{{ Math.round(value) }}%</span>
     </div>
-    <div class="h-2 rounded-full bg-pebble-bg overflow-hidden">
-      <div class="h-full bg-pebble-accent transition-all duration-200" :style="{ width: `${value}%` }" />
+    <div class="h-1.5 rounded-full bg-pebble-pressed overflow-hidden" role="progressbar"
+         :aria-valuenow="Math.round(value)" aria-valuemin="0" aria-valuemax="100">
+      <div class="h-full rounded-full bg-pebble-accent transition-[width] duration-200" :style="{ width: `${value}%` }" />
     </div>
   </div>
 </template>

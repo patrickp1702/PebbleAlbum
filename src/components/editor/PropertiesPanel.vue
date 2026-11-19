@@ -230,7 +230,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
       </div>
     </div>
 
-    <nav class="flex text-[10.5px] border-b border-pebble-border">
+    <nav class="flex text-2xs border-b border-pebble-border">
       <button v-for="t in TABS" :key="t.id"
               @click="tab = t.id"
               :class="['flex-1 py-2', tab === t.id ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim']">
@@ -244,7 +244,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
         <div v-if="img.slotRect" class="space-y-2 pb-2 border-b border-pebble-border">
           <div>
             <div class="text-xs text-pebble-text-dim mb-1">Fit to frame</div>
-            <div class="flex rounded bg-pebble-bg p-0.5 text-[11px]">
+            <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
               <button v-for="m in (['cover','contain'] as const)" :key="m" @click="applyFit(m)"
                       :class="['flex-1 py-1 rounded capitalize', (img.fit || 'cover') === m ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">{{ m === 'cover' ? 'Fill frame' : 'Fit whole' }}</button>
             </div>
@@ -253,7 +253,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
             <div class="text-xs text-pebble-text-dim mb-1">Cell aspect ratio</div>
             <div class="flex gap-1">
               <button v-for="a in ASPECTS" :key="a.label" @click="setCellAspect(a.r)"
-                      class="flex-1 py-1 rounded text-[10px] bg-pebble-surface-2 border border-pebble-border text-pebble-text-dim hover:border-pebble-accent hover:text-pebble-text">
+                      class="flex-1 py-1 rounded text-2xs bg-pebble-surface-2 border border-pebble-border text-pebble-text-dim hover:border-pebble-accent hover:text-pebble-text">
                 {{ a.label }}
               </button>
             </div>
@@ -263,7 +263,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
             <AppSlider label="Focus ↔" :min="0" :max="100" :model-value="focusX" unit="%" @update:model-value="v => setFocus('x', v)" />
             <AppSlider label="Focus ↕" :min="0" :max="100" :model-value="focusY" unit="%" @update:model-value="v => setFocus('y', v)" />
             <AppSlider label="Cover zoom" :min="100" :max="300" :model-value="coverZoomPct" unit="%" @update:model-value="setCoverZoom" />
-            <p class="text-[10px] text-pebble-text-dim">Drag Focus ↕ down to keep a face near the top in view.</p>
+            <p class="text-2xs text-pebble-text-dim">Drag Focus ↕ down to keep a face near the top in view.</p>
           </div>
           <AppSlider label="Manual zoom in frame" :min="0" :max="400" :model-value="frameZoom" unit="%"
                      @update:model-value="setZoom" />
@@ -272,7 +272,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
                   @click="toggleCrop">
             {{ editor.cropImageId === img.id ? '✓ Adjusting inside — click to finish' : '✥ Adjust photo inside frame' }}
           </button>
-          <p class="text-[10px] text-pebble-text-dim">
+          <p class="text-2xs text-pebble-text-dim">
             Select a cell to move/resize it. <b>Double-click</b> a photo (or use the button) to pan/zoom the picture <b>inside</b> the frame.
           </p>
         </div>
@@ -297,7 +297,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
           <AppButton v-if="img.eraseMask" size="sm" variant="ghost" title="Show the whole photo again (undoable)"
                      @click="editor.setEraseMask(img, undefined, 'Clear erasing')">Clear erasing</AppButton>
         </div>
-        <p class="text-[10px] text-pebble-text-dim -mt-1">Brush away parts of this photo right on the page to blend it in (soft edges, any opacity) — and paint them back anytime; the original is kept. Also: AI background removal, save as sticker.</p>
+        <p class="text-2xs text-pebble-text-dim -mt-1">Brush away parts of this photo right on the page to blend it in (soft edges, any opacity) — and paint them back anytime; the original is kept. Also: AI background removal, save as sticker.</p>
       </template>
 
       <!-- Adjust (light / colour / detail) — all live, PicsArt-style -->
@@ -309,18 +309,18 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
           </button>
           <AppButton size="sm" variant="ghost" @click="resetEffects">Reset</AppButton>
         </div>
-        <div class="text-[10px] uppercase tracking-wider text-pebble-text-dim pt-1">Light</div>
+        <div class="text-2xs uppercase tracking-wider text-pebble-text-dim pt-1">Light</div>
         <AppSlider label="Exposure" :min="-100" :max="100" :model-value="Math.round((img.effects.exposure ?? 0)*100)" @update:model-value="v => { img!.effects.exposure=v/100; liveFx(); }" />
         <AppSlider label="Brightness" :min="-100" :max="100" :model-value="Math.round(img.effects.brightness*100)" @update:model-value="v => { img!.effects.brightness=v/100; liveFx(); }" />
         <AppSlider label="Contrast" :min="-100" :max="100" :model-value="Math.round(img.effects.contrast*100)" @update:model-value="v => { img!.effects.contrast=v/100; liveFx(); }" />
         <AppSlider label="Highlights" :min="-100" :max="100" :model-value="Math.round((img.effects.highlights ?? 0)*100)" @update:model-value="v => { img!.effects.highlights=v/100; liveFx(); }" />
         <AppSlider label="Shadows" :min="-100" :max="100" :model-value="Math.round((img.effects.shadows ?? 0)*100)" @update:model-value="v => { img!.effects.shadows=v/100; liveFx(); }" />
-        <div class="text-[10px] uppercase tracking-wider text-pebble-text-dim pt-1">Colour</div>
+        <div class="text-2xs uppercase tracking-wider text-pebble-text-dim pt-1">Colour</div>
         <AppSlider label="Saturation" :min="-100" :max="100" :model-value="Math.round(img.effects.saturation*100)" @update:model-value="v => { img!.effects.saturation=v/100; liveFx(); }" />
         <AppSlider label="Temperature" :min="-100" :max="100" :model-value="Math.round((img.effects.temperature ?? 0)*100)" @update:model-value="v => { img!.effects.temperature=v/100; liveFx(); }" />
         <AppSlider label="Tint" :min="-100" :max="100" :model-value="Math.round((img.effects.tint ?? 0)*100)" @update:model-value="v => { img!.effects.tint=v/100; liveFx(); }" />
         <AppSlider label="Hue" :min="-180" :max="180" :model-value="Math.round(img.effects.hue ?? 0)" unit="°" @update:model-value="v => { img!.effects.hue=v; liveFx(); }" />
-        <div class="text-[10px] uppercase tracking-wider text-pebble-text-dim pt-1">Detail</div>
+        <div class="text-2xs uppercase tracking-wider text-pebble-text-dim pt-1">Detail</div>
         <AppSlider label="Sharpen" :min="0" :max="100" :model-value="Math.round(Math.max(0, (img.effects.sharpness ?? 1) - 1)*100)" @update:model-value="v => { img!.effects.sharpness=1+v/100; liveFx(); }" />
         <AppSlider label="Blur" :min="0" :max="20" v-model="img.effects.blur" unit="px" @update:model-value="liveFx" />
         <AppSlider label="Grain" :min="0" :max="100" :model-value="Math.round(img.effects.noise*100)" @update:model-value="v => { img!.effects.noise=v/100; liveFx(); }" />
@@ -331,7 +331,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
       <template v-else-if="tab === 'filters'">
         <div class="flex gap-1 flex-wrap">
           <button v-for="c in FILTER_CATS" :key="c.id" @click="filterCat = c.id"
-                  :class="['px-2 py-0.5 rounded-full text-[10px]', filterCat === c.id ? 'bg-pebble-accent text-white' : 'bg-pebble-surface-2 text-pebble-text-dim']">
+                  :class="['px-2 py-0.5 rounded-full text-2xs', filterCat === c.id ? 'bg-pebble-accent text-white' : 'bg-pebble-surface-2 text-pebble-text-dim']">
             {{ c.label }}
           </button>
         </div>
@@ -341,7 +341,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
             <div class="aspect-square bg-pebble-bg">
               <img v-if="presetThumbs[p.id]" :src="presetThumbs[p.id]" class="w-full h-full object-cover" :alt="p.label" />
             </div>
-            <div class="px-1 py-0.5 text-[9.5px] truncate"
+            <div class="px-1 py-0.5 text-2xs truncate"
                  :class="img.effects.filter === p.id ? 'text-pebble-accent' : 'text-pebble-text-dim'">{{ p.label }}</div>
           </button>
         </div>
@@ -368,14 +368,14 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
                     :class="['rounded border py-1.5 text-[13px] leading-none', img.maskId === m.id ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']"
                     :title="m.label">{{ m.glyph }}</button>
           </div>
-          <p v-if="img.maskId" class="text-[10px] text-pebble-text-dim mt-1">Borders and decorative frames trace the mask shape.</p>
+          <p v-if="img.maskId" class="text-2xs text-pebble-text-dim mt-1">Borders and decorative frames trace the mask shape.</p>
         </div>
 
         <div class="border-t border-pebble-border pt-2">
           <AppButton v-if="!img.border" size="sm" block @click="enableBorder">Add border</AppButton>
           <template v-else>
             <!-- Line vs. decorative frame -->
-            <div class="flex rounded bg-pebble-bg p-0.5 text-[11px]">
+            <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
               <button @click="useLineBorder" :class="['flex-1 py-1 rounded', !isPatternBorder ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">Line</button>
               <button @click="useFrameBorder" :class="['flex-1 py-1 rounded', isPatternBorder ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">Decorative frame</button>
             </div>
@@ -384,7 +384,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
             <template v-if="!isPatternBorder">
               <div>
                 <div class="text-xs text-pebble-text-dim mb-1">Style</div>
-                <div class="flex rounded bg-pebble-bg p-0.5 text-[11px]">
+                <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
                   <button v-for="s in (['solid','dashed','dotted','double'] as const)" :key="s" @click="setLineStyle(s)"
                           :class="['flex-1 py-1 rounded capitalize', img.border.style === s ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">{{ s }}</button>
                 </div>
@@ -409,7 +409,7 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
                 <div class="text-xs text-pebble-text-dim mb-1">Frame style</div>
                 <div class="grid grid-cols-3 gap-1.5">
                   <button v-for="bf in BORDER_FRAMES" :key="bf.id" @click="pickFrame(bf.id)"
-                          :class="['rounded border px-1 py-2 text-[10px] leading-tight', img.border.frameId === bf.id ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']">
+                          :class="['rounded border px-1 py-2 text-2xs leading-tight', img.border.frameId === bf.id ? 'border-pebble-accent bg-pebble-accent/10' : 'border-pebble-border hover:border-pebble-accent/50']">
                     {{ bf.label }}
                   </button>
                 </div>

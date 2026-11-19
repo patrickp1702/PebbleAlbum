@@ -176,7 +176,7 @@ const { adding, addPhotos } = useAddPhoto();
     </div>
 
     <!-- Per-page editing tabs -->
-    <nav class="flex text-[11px] border-b border-pebble-border">
+    <nav class="flex text-2xs border-b border-pebble-border">
       <button v-for="t in tabs" :key="t.id" @click="tab = t.id"
               :class="['flex-1 py-2', tab === t.id ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim hover:text-pebble-text']">
         {{ t.label }}
@@ -190,28 +190,28 @@ const { adding, addPhotos } = useAddPhoto();
           {{ adding ? 'Adding…' : '＋ Add photo' }}
         </AppButton>
         <div>
-          <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim mb-1">Layers (top → bottom)</div>
-          <p class="text-[10px] text-pebble-text-dim mb-1">Click to highlight on the page · drag to reorder · ✎ to edit.</p>
+          <div class="text-2xs uppercase tracking-wider text-pebble-text-dim mb-1">Layers (top → bottom)</div>
+          <p class="text-2xs text-pebble-text-dim mb-1">Click to highlight on the page · drag to reorder · ✎ to edit.</p>
           <div class="space-y-1">
             <div v-for="(pi, i) in placedTopFirst" :key="pi.id"
                  draggable="true"
                  @dragstart="dragIndex = i" @dragover.prevent="overIndex = i" @drop="dropReorder(i)" @dragend="dragIndex = null; overIndex = null"
-                 class="flex items-center gap-2 rounded bg-pebble-bg p-1 cursor-pointer hover:bg-white/5 transition"
+                 class="flex items-center gap-2 rounded bg-pebble-bg p-1 cursor-pointer hover:bg-pebble-hover transition"
                  :class="[editor.selectedObjectId === pi.id ? 'ring-1 ring-pebble-accent' : '', overIndex === i && dragIndex !== null ? 'ring-2 ring-pebble-accent/70' : '']"
                  @click="editor.requestSelect(pi.id, false)">
               <span class="text-pebble-text-dim/60 text-xs cursor-grab active:cursor-grabbing" title="Drag to reorder">⠿</span>
               <img v-if="src(pi)" :src="src(pi)" class="h-9 w-9 rounded object-cover pointer-events-none" />
               <div v-else class="h-9 w-9 rounded bg-pebble-surface-2 animate-pulse" />
-              <span class="flex-1 truncate text-[11px]">{{ pi.filename }}</span>
-              <button class="px-1.5 py-1 rounded text-pebble-text-dim hover:text-pebble-accent hover:bg-white/5" title="Edit photo" @click.stop="editor.requestSelect(pi.id, true)">✎</button>
+              <span class="flex-1 truncate text-2xs">{{ pi.filename }}</span>
+              <button class="px-1.5 py-1 rounded text-pebble-text-dim hover:text-pebble-accent hover:bg-pebble-hover" title="Edit photo" @click.stop="editor.requestSelect(pi.id, true)">✎</button>
             </div>
-            <div v-if="!placedTopFirst.length" class="text-[11px] text-pebble-text-dim">No photos placed.</div>
+            <div v-if="!placedTopFirst.length" class="text-2xs text-pebble-text-dim">No photos placed.</div>
           </div>
         </div>
         <div v-if="notPlaced.length">
-          <div class="text-[11px] uppercase tracking-wider text-amber-300/80 mb-1">Not placed ({{ notPlaced.length }}) — click to add</div>
+          <div class="text-2xs uppercase tracking-wider text-pebble-warning/80 mb-1">Not placed ({{ notPlaced.length }}) — click to add</div>
           <div class="grid grid-cols-4 gap-1.5">
-            <button v-for="pi in notPlaced" :key="pi.id" class="relative rounded overflow-hidden aspect-square ring-1 ring-amber-400/40" @click="placeExisting(pi)" :title="pi.filename">
+            <button v-for="pi in notPlaced" :key="pi.id" class="relative rounded overflow-hidden aspect-square ring-1 ring-pebble-warning/40" @click="placeExisting(pi)" :title="pi.filename">
               <img v-if="src(pi)" :src="src(pi)" class="w-full h-full object-cover opacity-80" />
               <div v-else class="w-full h-full bg-pebble-surface-2 animate-pulse" />
             </button>
@@ -249,13 +249,13 @@ const { adding, addPhotos } = useAddPhoto();
           </div>
         </div>
         <div v-if="isAlbum" class="pt-2 border-t border-pebble-border space-y-2">
-          <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim">Slideshow</div>
+          <div class="text-2xs uppercase tracking-wider text-pebble-text-dim">Slideshow</div>
           <label class="text-xs block">This page stays on screen (seconds)
             <div class="flex items-center gap-2 mt-1">
               <input type="number" min="1" max="60" step="0.5" class="pa-input w-24 py-1"
                      :value="page.durationSec ?? ''" :placeholder="String(project.meta?.slideshowInterval ?? 4)"
                      @input="setPageDuration(($event.target as HTMLInputElement).value)" />
-              <button v-if="page.durationSec" class="text-[10px] text-pebble-text-dim hover:text-pebble-text underline"
+              <button v-if="page.durationSec" class="text-2xs text-pebble-text-dim hover:text-pebble-text underline"
                       @click="setPageDuration('')">use default ({{ project.meta?.slideshowInterval ?? 4 }}s)</button>
             </div>
           </label>
@@ -266,7 +266,7 @@ const { adding, addPhotos } = useAddPhoto();
             :options="[{value:'slow',label:'Slow'},{value:'normal',label:'Normal'},{value:'fast',label:'Fast'}]"
             @update:model-value="v => { if (project.meta) { project.meta.pageTurnSpeed = v as any; project.markDirty(); } }" />
         </div>
-        <p v-if="isAlbum" class="text-[10px] text-pebble-text-dim">Tip: right-click a page in the left strip for Duplicate / Lock / Delete.</p>
+        <p v-if="isAlbum" class="text-2xs text-pebble-text-dim">Tip: right-click a page in the left strip for Duplicate / Lock / Delete.</p>
       </div>
     </div>
   </div>

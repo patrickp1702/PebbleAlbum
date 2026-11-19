@@ -270,9 +270,9 @@ onBeforeUnmount(() => {
     <!-- ─────────────────────────── START PHASE ─────────────────────────── -->
     <template v-if="phase === 'start'">
       <header class="h-14 shrink-0 flex items-center gap-3 px-5 border-b border-pebble-border">
-        <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-white/5" @click="router.push('/')">‹ Home</button>
+        <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-pebble-hover" @click="router.push('/')">‹ Home</button>
         <div class="font-semibold">Pixart</div>
-        <span class="text-[11px] text-pebble-text-dim">Open a photo → edit → save</span>
+        <span class="text-2xs text-pebble-text-dim">Open a photo → edit → save</span>
       </header>
 
       <section class="flex-1 flex items-center justify-center p-8 overflow-auto bg-[#0d1124]">
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
             ✎ erase and restore with a brush, adjust, filter, frame and shadow — then save it as an image.
           </p>
           <AppButton size="lg" :disabled="opening" @click="openPhoto">{{ opening ? 'Opening…' : 'Open photo…' }}</AppButton>
-          <p class="text-[11px] text-pebble-text-dim mt-4 leading-relaxed">
+          <p class="text-2xs text-pebble-text-dim mt-4 leading-relaxed">
             Pick several at once: the first becomes the base, the rest are placed on top.
             Edits are kept until you close Pixart or open another photo.
           </p>
@@ -299,13 +299,13 @@ onBeforeUnmount(() => {
         <span class="font-semibold">Pixart</span>
         <span class="text-pebble-text-dim text-xs truncate max-w-[14rem]" :title="baseName">{{ baseName }} · {{ sizeLabel }}</span>
         <div class="flex items-center gap-1 ml-3">
-          <AppTooltip :text="history.undoLabel"><button class="px-2 py-1 rounded hover:bg-white/5 disabled:opacity-30" :disabled="!history.canUndo" @click="history.undo()">↶</button></AppTooltip>
-          <AppTooltip :text="history.redoLabel"><button class="px-2 py-1 rounded hover:bg-white/5 disabled:opacity-30" :disabled="!history.canRedo" @click="history.redo()">↷</button></AppTooltip>
+          <AppTooltip :text="history.undoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canUndo" @click="history.undo()">↶</button></AppTooltip>
+          <AppTooltip :text="history.redoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canRedo" @click="history.redo()">↷</button></AppTooltip>
         </div>
         <div class="flex items-center gap-1 ml-3">
-          <button class="px-2 py-1 rounded hover:bg-white/5" @click="editor.zoomOut()">−</button>
+          <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomOut()">−</button>
           <span class="w-12 text-center tabular-nums">{{ editor.zoomPercent }}%</span>
-          <button class="px-2 py-1 rounded hover:bg-white/5" @click="editor.zoomIn()">＋</button>
+          <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomIn()">＋</button>
         </div>
         <div class="flex-1 text-center text-pebble-text-dim text-xs truncate">Drag · resize · rotate · ✎ erase/restore in the right panel · edits kept until you close or open another photo</div>
         <AppButton size="sm" variant="secondary" :disabled="adding" title="Add photos from your computer on top" @click="addPhotos">{{ adding ? 'Adding…' : '＋ Add photo' }}</AppButton>

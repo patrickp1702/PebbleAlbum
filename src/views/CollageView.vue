@@ -296,9 +296,9 @@ onBeforeUnmount(() => {
     <!-- ─────────────────────────── SETUP PHASE ─────────────────────────── -->
     <template v-if="c.phase === 'setup'">
       <header class="h-14 shrink-0 flex items-center gap-3 px-5 border-b border-pebble-border">
-        <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-white/5" @click="router.push('/')">‹ Home</button>
+        <button class="h-8 px-3 rounded-lg text-sm text-pebble-text-dim hover:text-pebble-text hover:bg-pebble-hover" @click="router.push('/')">‹ Home</button>
         <div class="font-semibold">Collage Creator</div>
-        <span class="text-[11px] text-pebble-text-dim">Pick photos → edit → download</span>
+        <span class="text-2xs text-pebble-text-dim">Pick photos → edit → download</span>
         <div class="flex-1"></div>
         <AppButton size="sm" variant="ghost" @click="clearCollage">Clear</AppButton>
         <AppButton size="sm" :disabled="!selCount || building" @click="create">{{ building ? 'Building…' : `Edit collage (${selCount})` }}</AppButton>
@@ -318,7 +318,7 @@ onBeforeUnmount(() => {
               <AppDropdown label="Shape" :model-value="c.orientation" :options="orientationOptions" @update:model-value="v => c.orientation = v as Orientation" />
             </div>
             <AppColorPicker label="Background" v-model="c.bgColor" />
-            <p class="text-[11px] text-pebble-text-dim leading-relaxed">These are just a starting point — you can change the layout, theme, background, add borders, effects, stickers and text in the editor.</p>
+            <p class="text-2xs text-pebble-text-dim leading-relaxed">These are just a starting point — you can change the layout, theme, background, add borders, effects, stickers and text in the editor.</p>
           </div>
           <div class="flex-1 overflow-auto p-3">
             <div v-if="!c.records.length" class="text-pebble-text-dim text-sm text-center mt-10">Pick a folder, then tap photos to add them to the collage.</div>
@@ -328,7 +328,7 @@ onBeforeUnmount(() => {
                       :class="orderOf(r.relativePath) ? 'ring-pebble-accent' : 'ring-transparent opacity-70 hover:opacity-100'">
                 <img v-if="src(r)" :src="src(r)" class="w-full h-full object-cover" />
                 <div v-else class="w-full h-full bg-pebble-surface-2 animate-pulse" />
-                <span v-if="orderOf(r.relativePath)" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-pebble-accent text-white text-[11px] grid place-items-center">{{ orderOf(r.relativePath) }}</span>
+                <span v-if="orderOf(r.relativePath)" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-pebble-accent text-white text-2xs grid place-items-center">{{ orderOf(r.relativePath) }}</span>
               </button>
             </div>
           </div>
@@ -351,13 +351,13 @@ onBeforeUnmount(() => {
         <button class="text-pebble-text-dim hover:text-pebble-text px-2" @click="backToPhotos">‹ Photos</button>
         <span class="font-semibold">Collage</span>
         <div class="flex items-center gap-1 ml-3">
-          <AppTooltip :text="history.undoLabel"><button class="px-2 py-1 rounded hover:bg-white/5 disabled:opacity-30" :disabled="!history.canUndo" @click="history.undo()">↶</button></AppTooltip>
-          <AppTooltip :text="history.redoLabel"><button class="px-2 py-1 rounded hover:bg-white/5 disabled:opacity-30" :disabled="!history.canRedo" @click="history.redo()">↷</button></AppTooltip>
+          <AppTooltip :text="history.undoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canUndo" @click="history.undo()">↶</button></AppTooltip>
+          <AppTooltip :text="history.redoLabel"><button class="px-2 py-1 rounded hover:bg-pebble-hover disabled:opacity-30" :disabled="!history.canRedo" @click="history.redo()">↷</button></AppTooltip>
         </div>
         <div class="flex items-center gap-1 ml-3">
-          <button class="px-2 py-1 rounded hover:bg-white/5" @click="editor.zoomOut()">−</button>
+          <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomOut()">−</button>
           <span class="w-12 text-center tabular-nums">{{ editor.zoomPercent }}%</span>
-          <button class="px-2 py-1 rounded hover:bg-white/5" @click="editor.zoomIn()">＋</button>
+          <button class="px-2 py-1 rounded hover:bg-pebble-hover" @click="editor.zoomIn()">＋</button>
         </div>
         <div class="flex-1 text-center text-pebble-text-dim text-xs">Drag · resize · double-click to crop · right panel for effects, borders, decorations &amp; text</div>
         <AppButton size="sm" variant="ghost" @click="clearCollage">Clear</AppButton>
@@ -370,7 +370,7 @@ onBeforeUnmount(() => {
           <AlbumCanvas />
           <div class="h-48 bg-pebble-surface border-t border-pebble-border flex flex-col">
             <nav class="flex items-center text-xs border-b border-pebble-border">
-              <span class="px-3 text-[10px] uppercase tracking-wider text-pebble-text-dim/70">Add</span>
+              <span class="px-3 text-2xs uppercase tracking-wider text-pebble-text-dim/70">Add</span>
               <button @click="editor.bottomPanel = 'images'" :class="['px-4 py-2', editor.bottomPanel === 'images' ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim']">Photos</button>
               <button @click="editor.bottomPanel = 'themes'" :class="['px-4 py-2', editor.bottomPanel === 'themes' ? 'text-pebble-accent border-b-2 border-pebble-accent' : 'text-pebble-text-dim']">Themes</button>
             </nav>

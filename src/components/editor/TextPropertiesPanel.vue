@@ -88,7 +88,7 @@ function remove() {
 
       <div>
         <div class="text-xs text-pebble-text-dim mb-1">Alignment</div>
-        <div class="flex rounded bg-pebble-bg p-0.5 text-[11px]">
+        <div class="flex rounded bg-pebble-bg p-0.5 text-2xs">
           <button v-for="a in alignOptions" :key="a.value" @click="setAlign(a.value)"
                   :class="['flex-1 py-1 rounded', block.style.align === a.value ? 'bg-pebble-accent text-white' : 'text-pebble-text-dim']">{{ a.label }}</button>
         </div>
@@ -97,7 +97,7 @@ function remove() {
       <AppColorPicker label="Colour" v-model="block.style.color" @update:model-value="touch" />
       <AppSlider label="Bend" :min="-100" :max="100" :model-value="Math.round(block.style.curve ?? 0)"
                  @update:model-value="v => { block!.style.curve = v; touch(); }" />
-      <p v-if="block.style.curve" class="text-[10px] text-pebble-text-dim -mt-1">Positive arcs up (smile), negative arcs down; ±100 ≈ a full circle.</p>
+      <p v-if="block.style.curve" class="text-2xs text-pebble-text-dim -mt-1">Positive arcs up (smile), negative arcs down; ±100 ≈ a full circle.</p>
       <AppSlider label="Letter spacing" :min="-5" :max="40" v-model="block.style.letterSpacing" @update:model-value="touch" />
       <AppSlider label="Line height" :min="80" :max="240" :model-value="Math.round(block.style.lineHeight*100)" unit="%" @update:model-value="v => { block!.style.lineHeight = v/100; touch(); }" />
       <AppSlider label="Rotation" :min="-180" :max="180" v-model="block.position.rotation" unit="°" @update:model-value="touch" />
@@ -105,7 +105,7 @@ function remove() {
 
       <!-- Legibility kit (for text over busy photos) -->
       <div class="pt-2 border-t border-pebble-border space-y-2">
-        <div class="text-[11px] uppercase tracking-wider text-pebble-text-dim">Legibility</div>
+        <div class="text-2xs uppercase tracking-wider text-pebble-text-dim">Legibility</div>
         <label class="flex items-center justify-between text-xs"><span>Background plate</span>
           <input type="checkbox" :checked="!!block.style.background" @change="togglePlate(($event.target as HTMLInputElement).checked)" /></label>
         <AppColorPicker v-if="block.style.background" label="Plate colour" :model-value="block.style.background" @update:model-value="setPlate" />

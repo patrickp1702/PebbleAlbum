@@ -49,7 +49,7 @@ function applyLayout(layoutId: string) {
         <div v-for="s in l.slots" :key="s.id" class="absolute bg-pebble-accent/40 rounded-[1px]"
              :style="{ left: `${s.x*100}%`, top: `${s.y*100}%`, width: `${s.w*100}%`, height: `${s.h*100}%` }" />
       </div>
-      <div class="text-[10px] truncate">{{ l.name }}</div>
+      <div class="text-2xs truncate">{{ l.name }}</div>
     </button>
   </div>
 </template>

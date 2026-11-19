@@ -177,7 +177,7 @@ async function render() {
       } else {
         // Free photo, or framed photo in crop mode → photo is directly editable.
         obj.set({ selectable: !page.value.locked, hasControls: !page.value.locked });
-        if (inCrop) obj.set({ borderColor: '#6C63FF', cornerColor: '#6C63FF' });
+        if (inCrop) obj.set({ borderColor: '#2B66F6', cornerColor: '#2B66F6' });
         objs.push(obj);
         if (!inCrop) {
           pushVignette();
@@ -192,7 +192,7 @@ async function render() {
           const r = pi.slotRect;
           const outline = new Rect({
             left: r.x, top: r.y, width: r.width, height: r.height,
-            fill: 'transparent', stroke: '#6C63FF', strokeWidth: 2, strokeDashArray: [10, 7],
+            fill: 'transparent', stroke: '#2B66F6', strokeWidth: 2, strokeDashArray: [10, 7],
             rx: pi.border?.radius ?? 0, ry: pi.border?.radius ?? 0,
             selectable: false, evented: false,
           });
@@ -552,7 +552,7 @@ function setSwapHighlight(target: PageImage | null) {
   const f = target.slotRect!;
   swapHighlight = new Rect({
     left: f.x, top: f.y, width: f.width, height: f.height,
-    fill: 'rgba(108,99,255,0.12)', stroke: '#6C63FF', strokeWidth: 6, strokeDashArray: [18, 12],
+    fill: 'rgba(43,102,246,0.12)', stroke: '#2B66F6', strokeWidth: 6, strokeDashArray: [18, 12],
     selectable: false, evented: false, objectCaching: false,
   });
   canvas.add(swapHighlight);
@@ -765,7 +765,7 @@ onMounted(() => {
     preserveObjectStacking: true,
     uniformScaling: true, // corner-drag keeps aspect ratio (no stretching)
     selectionColor: 'rgba(108,99,255,0.15)',
-    selectionBorderColor: '#6C63FF',
+    selectionBorderColor: '#2B66F6',
   });
   bindEvents();
   void render();
@@ -835,7 +835,7 @@ watch(() => editor.compareOriginal, (on) => {
 </script>
 
 <template>
-  <div ref="wrap" class="relative flex-1 flex items-center justify-center overflow-auto bg-[#0d1124]"
+  <div ref="wrap" class="relative flex-1 flex items-center justify-center overflow-auto bg-pebble-bg"
        @dragover.prevent @drop="onDrop">
     <div class="shadow-2xl shadow-black/50">
       <canvas ref="el" />
