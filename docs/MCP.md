@@ -105,15 +105,20 @@ the app: the photo is mirrored about its own centre, then rotated clockwise abou
 clipped to their (unrotated) slot, and a photo partly off the page is cropped, not
 shifted. `erase_image_region` x/y/width/height are fractions of the **un-flipped**
 source photo (the mask is applied before the flip, exactly as in the app).
+Photo **effects** are shown too (named filter at its strength + every adjust
+slider, ported from the app's filter stack onto Fabric's own Canvas2D filter maths;
+the vignette overlay is not drawn), and the **Filter brush** mask (`filterMask`)
+blends the original back in: per pixel `original·(1−m) + filtered·m`, then the
+erase mask is applied on top — the same order as the app.
 
-## 5. Tool catalog (51 tools)
+## 5. Tool catalog (53 tools)
 
 | Group | Tools |
 |---|---|
 | Discovery | `pebble_guide`, `list_skills`, `read_skill`, `list_projects`, `get_project`, `get_page`, `list_images`, `list_catalog` |
 | Vision | `render_page`, `view_image` |
 | Pages | `add_page`, `delete_page`, `duplicate_page`, `move_page`, `update_page` (incl. re-layout) |
-| Images | `place_image` (`free:true` = the app's "Add photo" overlay: always a new free object on top, optional x/y/width/rotation), `update_image` (geometry + filter preset w/ `filterStrength` + ADJUST sliders: exposure/brightness/contrast/highlights/shadows/saturation/temperature/tint/hue/sharpness/blur/noise/vignette), `set_image_mask` (shape crop: circle/heart/star/… — see `list_catalog masks`), `set_image_border` (line / gradient / decorative frame), `set_image_shadow`, `remove_image`, `swap_images`, `erase_image_region` (non-destructive brush stroke: erase/restore an ellipse/rect, given as 0..1 fractions of the photo, with opacity + feather → new mask PNG in `.pebble_masks/`), `clear_image_erase` (drop the erasing) |
+| Images | `place_image` (`free:true` = the app's "Add photo" overlay: always a new free object on top, optional x/y/width/rotation), `update_image` (geometry + filter preset w/ `filterStrength` + ADJUST sliders: exposure/brightness/contrast/highlights/shadows/saturation/temperature/tint/hue/sharpness/blur/noise/vignette), `set_image_mask` (shape crop: circle/heart/star/… — see `list_catalog masks`), `set_image_border` (line / gradient / decorative frame), `set_image_shadow`, `remove_image`, `swap_images`, `erase_image_region` (non-destructive brush stroke: erase/restore an ellipse/rect, given as 0..1 fractions of the photo, with opacity + feather → new mask PNG in `.pebble_masks/`), `clear_image_erase` (drop the erasing), `mask_image_filter_region` (Filter brush stroke: `mode` remove/restore the photo's filter + adjustments over an ellipse/rect in 0..1 fractions of the un-flipped source, opacity + feather → new `<imageId>_fx_<ts>.png`, sets `filterMask`), `clear_image_filter_mask` (filter everywhere again). `copy_image_style` copies effects but never a photo's masks |
 | Decorations | `add_pattern`, `add_sticker`, `remove_decoration` |
 | Text / proverbs | `add_text`, `add_proverb`, `update_text` (incl. `curve` for bent/circular text), `remove_text` |
 | Cutouts / stickers | `remove_background` (client-side AI, optional saveAsSticker), `list_custom_stickers`, `add_sticker` (svg / emoji / custom `file`) |
@@ -155,8 +160,9 @@ the wider filesystem:
   files at all**.
 - **The only other writes are new files inside the album folder:** cutout PNGs to
   `<sourceFolder>/cutouts/` (`remove_background`) and erase masks to
-  `<sourceFolder>/.pebble_masks/` (`erase_image_region`; every save is a NEW
-  `<imageId>_<timestamp>.png`, older ones stay on disk). Both paths are validated to
+  `<sourceFolder>/.pebble_masks/` (`erase_image_region`, `mask_image_filter_region`;
+  every save is a NEW `<imageId>_<timestamp>.png` / `<imageId>_fx_<timestamp>.png`,
+  older ones stay on disk). Both paths are validated to
   stay inside the album folder (same containment + symlink checks as image reads;
   a `.pebble_masks` that resolves outside the album is refused).
 - **Image reads are confined to the project's album `sourceFolder`.** Every

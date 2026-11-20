@@ -223,7 +223,7 @@ Test layers:
 
 | ID | Scenario | Expected |
 |---|---|---|
-| MCP-01 | `initialize` + `tools/list` over stdio | returns serverInfo + 51 tools |
+| MCP-01 | `initialize` + `tools/list` over stdio | returns serverInfo + 53 tools |
 | MCP-02 | `get_project` / `get_page` | accurate meta + page/image/text/decoration ids |
 | MCP-03 | edit tool (place_image, update_image, set_image_border, add_*) | mutates and **saves the `.pebble` (+ `.bak`)** immediately |
 | MCP-04 | `render_page` | returns a small JPEG (≤~80 KB) matching the page; photos cover-fit, not stretched |
@@ -233,3 +233,23 @@ Test layers:
 | MCP-08 | **Parity check** | every UI capability has a corresponding tool; new features add theirs (see `MCP.md`) |
 | MCP-09 | Connect AI panel | copy-config + copy-prompt produce a working config (resolved node path + env) |
 | MCP-10 | App ⇄ agent round-trip | agent edits a project; reopening in the app shows the changes |
+
+## 18. Filter brush — partial filter (`PageImage.filterMask`)
+
+| ID | Scenario | Expected |
+|---|---|---|
+| FB-01 | Photo with no filter/adjustment → Adjust or Filters tab | **Filter brush** button disabled, hint "Apply a filter or adjustment first…" (vignette alone does not count — it is an overlay) |
+| FB-02 | Strong filter (B&W / Sepia 100%) → Filter brush → Remove filter, 100% opacity over the left half → Apply | left half shows the original colours, right half the filtered ones — in the editor canvas, the page thumbnail, the page-turn preview and the export; panel shows **Partial** + **Clear** |
+| FB-03 | 40% opacity stroke | that area = original·0.4 + filtered·0.6 (measured: mask alpha 153; pixel within ±1 of the lerp) |
+| FB-04 | Rotate / flip the photo after brushing | the unfiltered area stays on the same part of the PHOTO (mask lives in un-flipped source space) |
+| FB-05 | Drag an Adjust slider / change preset or strength with a mask | updates live without a canvas rebuild (`canvasRevision` unchanged); brushed area stays original |
+| FB-06 | Hold to compare | whole photo shows the original while held; the partial filter returns on release |
+| FB-07 | Undo / redo in the studio (Cmd/Ctrl Z, Shift Z), Reset (filter everywhere), Esc with changes | same behaviour as the eraser; Reset + Apply clears `filterMask` |
+| FB-08 | Undo / redo after Apply or Clear (editor history) | `filterMask` path swaps back and forth; thumbnails refresh |
+| FB-09 | Photo with BOTH an erase mask and a filter mask | erased areas stay transparent; filter studio preview and erase studio preview both show the partial filter + erasing |
+| FB-10 | Studio in filter mode | title "Filter brush", modes Remove filter / Restore filter / Pan (E / R / Space), no AI removal, no sticker section; Apply saves only the mask as `<imageId>_fx_<ts>.png` |
+| FB-11 | Album editor, Pixart and Collage | the button opens the same studio in all three |
+| FB-12 | Move the photo to another page (drag) | `filterMask` carried with it |
+| FB-13 | MCP `mask_image_filter_region` remove/restore, `clear_image_filter_mask`, `get_page` | new mask file per call; `render_page` shows original/filtered through the mask; unreadable mask → filter everywhere (render) / refused (stroke); `..` paths ignored |
+| FB-14 | MCP `copy_image_style` from a brushed photo | effects copied, `filterMask` NOT copied |
+

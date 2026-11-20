@@ -15,6 +15,8 @@ so the desktop app reflects your edits when the user opens/reloads the project.
 - Build pages: `add_page`, `update_page` (incl. re-layout), `move_page`, etc.
 - Overlay a photo (`place_image {free:true}`) and erase/restore parts of it
   non-destructively (`erase_image_region`, `clear_image_erase`).
+- Keep a filter on only part of a photo — the Filter brush
+  (`mask_image_filter_region`, `clear_image_filter_mask`).
 - Place & style photos: `place_image`, `update_image` (move/scale/rotate/fit/
   effects), `set_image_border` (line, **gradient**, or **decorative SVG frame**),
   `set_image_shadow`.

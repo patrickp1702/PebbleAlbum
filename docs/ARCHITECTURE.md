@@ -215,7 +215,7 @@ Parser: `src/engine/filenameParser.ts`. Format
 ## 10. IPC channels
 
 `folder:open|list|watch|stopWatch|addPhotos` (`addPhotos` = Add photo dialog; outside files are copied to `<folder>/added/`), `image:readBase64|exif|saveDataUrl`,
-`cutout:saveMask` (writes a new erase-mask PNG to `<folder>/.pebble_masks/`; returns its relative path for `PageImage.eraseMask`),
+`cutout:saveMask` (writes a new erase-mask PNG to `<folder>/.pebble_masks/`; returns its relative path for `PageImage.eraseMask` — or, with kind `'filter'`, a `<imageId>_fx_<ts>.png` Filter-brush mask for `PageImage.filterMask`),
 `thumb:generate|cachePath|clear`,
 `project:save|load|autosave|openDialog|saveDialog|list|delete|recents:get|add|delete`,
 `export:pdf|jpeg|png` (+ `export:progress` event),
@@ -253,7 +253,7 @@ plus the `folder:changed` push event. The renderer-facing surface is the typed
 Node built-ins + `sharp`) that an external agent launches. It edits the same
 `.pebble` files as the app, so the agent and the GUI are peer editors of one truth.
 
-- **51 tools** spanning discovery, low-cost vision (`render_page`/`view_image` →
+- **53 tools** spanning discovery, low-cost vision (`render_page`/`view_image` →
   small JPEGs via Sharp), pages, images (transform/effects/border incl. gradient +
   decorative frame/shadow/swap, free "Add photo" overlays and the non-destructive eraser), decorations & stickers, text & proverbs, and
   theme/album metadata. Every edit tool loads → mutates → saves the `.pebble` (+ `.bak`).

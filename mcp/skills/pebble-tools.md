@@ -66,8 +66,19 @@ All tools take `project` (the project name or .pebble path). Page tools take
   photo overlay, then erase its edges so the photo below shows through.
 - `clear_image_erase {project, page, imageId}` — remove all erasing (file kept). Also
   the fix if `erase_image_region` reports an unreadable existing mask.
+- `mask_image_filter_region {project, page, imageId, x, y, width, height, mode?, shape?,
+  opacity?, feather?}` — **Filter brush** (one stroke): `mode` remove (that area shows
+  the ORIGINAL photo) | restore (filter back in). Same box space / opacity / feather as
+  `erase_image_region`. Masks the photo's filter + every adjust slider (not the
+  vignette/border/shadow). Sets `filterMask` (in `get_page`; shown by `render_page`).
+  Set the filter first with `update_image`. Typical use: B&W photo with the subject
+  left in colour.
+- `clear_image_filter_mask {project, page, imageId}` — filter everywhere again (file
+  kept); also the fix for an unreadable filter mask.
+- `copy_image_style` copies effects/border/shadow/fit, never a photo's masks.
 - `render_page` shows flip, rotation (clockwise about the photo's top-left, like the
-  app), opacity and erasing; photos partly off the page are cropped.
+  app), opacity, filters/adjustments (not the vignette), the Filter brush and erasing;
+  photos partly off the page are cropped.
 - `update_image {project, page, imageId, focusX?,focusY?,zoom?, x?,y?,width?,height?,
   rotation?,opacity?, zIndex?,visible?,flipX?,flipY?,fit?, filter?,filterStrength?,
   exposure?,brightness?,contrast?,highlights?,shadows?, saturation?,temperature?,

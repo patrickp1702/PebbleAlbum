@@ -29,7 +29,7 @@ In the app: **open a project → top bar → 🤖 Connect AI**. That panel gives
 2. A **starter prompt** that tells the agent to read the skills and design the
    open project.
 
-## Tools (51)
+## Tools (53)
 
 - **Discovery:** `pebble_guide`, `list_skills`, `read_skill`, `list_projects`,
   `get_project`, `get_page`, `list_images`, `list_catalog`.
@@ -39,12 +39,14 @@ In the app: **open a project → top bar → 🤖 Connect AI**. That panel gives
   adjust sliders: exposure/brightness/contrast/highlights/shadows/saturation/
   temperature/tint/hue/sharpness/blur/grain/vignette), `set_image_mask` (shape
   crop), `set_image_border`, `set_image_shadow`, `remove_image`, `swap_images`, `erase_image_region` / `clear_image_erase`
-  (non-destructive eraser; masks go to `<sourceFolder>/.pebble_masks/`).
+  (non-destructive eraser; masks go to `<sourceFolder>/.pebble_masks/`),
+  `mask_image_filter_region` / `clear_image_filter_mask` (Filter brush: remove/restore
+  the photo's filter on part of it; `<imageId>_fx_<ts>.png` masks).
 - **Decorations:** `add_pattern`, `add_sticker`, `remove_decoration`.
 - **Text/proverbs:** `add_text`, `add_proverb`, `update_text`, `remove_text`.
 - **Album:** `set_theme`, `update_album`.
 - …plus culling, collage, cutout (`remove_background`) and utility tools — call
-  `tools/list` for the full set of 51.
+  `tools/list` for the full set of 53.
 
 Every edit tool loads the `.pebble`, mutates it, and saves immediately (+ `.bak`).
 Render tools return small JPEGs (default ≤640px, q62 — a page is ~5–80 KB) so the

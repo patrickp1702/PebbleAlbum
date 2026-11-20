@@ -84,7 +84,7 @@ most important ones:
   `~/Documents/Pebble`, so anything the agent designs appears in the app on
   reload. *Why:* turns PebbleAlbum into an agent-drivable studio — "make me a
   beautiful album" — while the app stays the source of truth.
-- **51 tools covering every album action** (30 at first release; culling, collage, cutout, eraser and utility tools since) — discovery (`get_project`, `get_page`,
+- **53 tools covering every album action** (30 at first release; culling, collage, cutout, eraser, filter-brush and utility tools since) — discovery (`get_project`, `get_page`,
   `list_images`, `list_catalog`), pages (add/delete/duplicate/move/update incl.
   re-layout), images (place/transform/effects/fit/border incl. gradient + SVG
   frame/shadow/swap), decorations & stickers, text & proverbs, and theme/album
@@ -527,6 +527,45 @@ copy of them.
   MCP server to edit; the capabilities it uses (free overlays, erase masks, filters…)
   are the album's, which already have their tools (`place_image {free:true}`,
   `erase_image_region`, …).
+
+## Filter brush — partial filter — 2026-11
+
+PicsArt-style selective filters: once a filter or adjustment is applied to a photo,
+brush it away from some areas (they show the original photo) and back in elsewhere.
+
+- **Entry point** — Photo panel → **Adjust** or **Filters** tab → **Filter brush**
+  (disabled, with a hint, until the photo has a filter or an adjustment). When a mask
+  exists the button shows **Partial** and a **Clear** button (undoable) appears.
+  Works in the album editor, Pixart and Collage (all mount the same studio).
+  *(Implemented by the app.)*
+- **The same studio as the eraser** (`CutoutEditor` with `mode="filter"`, not a copy):
+  **Remove filter** / **Restore filter** / Pan (E / R / Space), the same Size /
+  Opacity / Hardness brush, stroke-at-opacity accumulation, undo/redo, Reset (= filter
+  everywhere), Fit view, Show page. The preview shows the real result — brushed areas
+  unfiltered, the rest filtered, erasing still applied. AI removal and the sticker
+  section are hidden. **Apply** (pinned) saves only the mask. *(Implemented by the app.)*
+- **Data** — `PageImage.filterMask`: same rules as `eraseMask` (PNG under
+  `.pebble_masks/`, a NEW `<imageId>_fx_<timestamp>.png` per save, un-flipped
+  source-pixel space, stretched over the whole photo); alpha = how much of the
+  effects apply (255 filtered, 0 original); absent = filter everywhere. History
+  command `editorStore.setFilterMask` (undo/redo swaps the path). Saved through the
+  existing `cutout:saveMask` IPC with an optional `kind: 'filter'`.
+- **What is masked** — the whole per-pixel colour pipeline of `effects`: named preset
+  at its strength + every adjust slider including blur, sharpen and grain. The
+  vignette, border and shadow are separate overlay objects and are NOT masked.
+- **Rendering (one place)** — `pageRenderer.applyEffects` blends the original back in
+  after every filter pass (`engine/maskBlend.ts`: destination-in / destination-out /
+  additive on Fabric's 2D filtered canvas), so the editor canvas, live slider updates
+  (no rebuild), hold-to-compare, page thumbnails, page-turn preview and export agree,
+  on both the WebGL and the Canvas2D filter backends. No extra GL textures.
+- **Consistency** — moving a photo to another page carries `filterMask`; page
+  thumbnails refresh when it changes; copy-style (MCP `copy_image_style`; the app has
+  no in-app copy-style) never copies masks.
+- **MCP parity** — `get_page` reports `filterMask`; `mask_image_filter_region
+  {imageId, mode: remove|restore, shape?, x, y, width, height, opacity?, feather?}`
+  (one stroke, 0..1 fractions of the un-flipped source, mirrors `erase_image_region`)
+  and `clear_image_filter_mask`. `render_page` now renders photo effects (a port of
+  the app's filter stack on Fabric's Canvas2D maths) and blends through the mask.
 
 ---
 

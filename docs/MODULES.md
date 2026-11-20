@@ -49,7 +49,7 @@ it depends on, what depends on it, and the **invariants** that must not be broke
   (b) `PagePanel` composes `LayoutPicker` / `DecorationPanel` / `ProverbPanel`.
 - Components share state **only through Pinia stores**. The only props/emits in the
   app are `PageTurnScene` (`pageIndex` ↓, `pageChanged` ↑), `CutoutEditor`
-  (`filename`/`imageId` ↓, `close` ↑), `PagePanel`'s optional `variant` ↓ + optional `tab` v-model (the host's insert bar opens a tab), and `ui/` primitives.
+  (`filename`/`imageId`/`mode` ↓, `close` ↑), `PagePanel`'s optional `variant` ↓ + optional `tab` v-model (the host's insert bar opens a tab), and `ui/` primitives.
   This is the "loosely coupled, only needed props/emits" design the project wants.
 
 ---
@@ -77,6 +77,18 @@ A `PageImage` is positioned by **four** related fields:
   transparent = erased), stretched over the WHOLE source photo, applied **before**
   crop/fit. Non-destructive: each save writes a new file; the photo is untouched.
   Written by the app (IPC `cutout:saveMask`) and by the MCP `erase_image_region`.
+- `filterMask` *(optional)* — the **Filter brush**: same storage rules as `eraseMask`
+  (`.pebble_masks/<imageId>_fx_<ts>.png`, new file per save, un-flipped source space,
+  stretched over the whole photo); **alpha = how much of `effects` applies** (255 =
+  filtered, 0 = original). Masks the whole per-pixel effects pipeline (preset +
+  strength + every adjust slider incl. blur/sharpen/grain); the vignette, border and
+  shadow are separate objects and are NOT masked. Absent = filter everywhere. Written
+  by the app (`cutout:saveMask` with kind `'filter'`) and the MCP
+  `mask_image_filter_region`. ⚠ INVARIANT: applied in ONE place —
+  `pageRenderer.applyEffects` → `applyFilterMask` (blend via `engine/maskBlend.ts`
+  after every filter pass), so the editor, live slider updates, hold-to-compare,
+  thumbnails and export agree; the erase mask is baked into the source first, so
+  erasing still applies on top.
 
 So: **frame = `slotRect`/`clipPolygon`**, **photo inside the frame = `position`**.
 Panning moves `position` inside a fixed frame; moving the cell moves both.
@@ -146,6 +158,7 @@ Renderer-only (use Fabric/DOM/`window`): `pageRenderer`, `fabricFilters`,
 | `pageRenderer` | **build Fabric objects** (editor + export) | decoEngine, fabricFilters, themeEngine, config/overlays, config/stickers, borderFrames | **single source of object building**; cover/clip/polygon; decorations behind, stickers front; gradient + decorative-frame borders; async SVG stickers (uniform scale) |
 | `borderFrames` | generate decorative SVG photo-border frames sized to the cell | — | 13 edge-motif generators (incl. uploaded **scallop_fan**); generated at frame px so the motif tiles, ⚠ never stretched; tile count capped |
 | `fabricFilters` | filter id → Fabric v6 filter stack | fabric | Fabric v6 has **no Vignette filter** (don't re-add) |
+| `maskBlend` | Filter-brush compositing: `original·(1−m) + filtered·m` on a 2D canvas (destination-in / destination-out / lighter, clip-bounded) | — | renderer-only; backend-independent (runs on the 2D canvas Fabric returns from WebGL or Canvas2D) — no GL textures; shared by pageRenderer and the brush studio |
 | `imageLoader` | cached base64 thumbnail loader | `window.pebble` | **base64, never `file://`** (file:// is blocked in the renderer) |
 | `similarity` | perceptual **dHash** + **quality** score + near-duplicate clustering | — | pure module; shared by `analyze.ipc` + MCP culling tools. `buildDuplicateGroups(items, qById, threshold)` re-clusters at any Hamming threshold (drives the Duplicate Finder strictness slider with no re-hash) |
 
@@ -153,7 +166,7 @@ Renderer-only (use Fabric/DOM/`window`): `pageRenderer`, `fabricFilters`,
 | Store | Owns | Depends on |
 |---|---|---|
 | `projectStore` | the `PebbleProject`, dirty flag, save/autosave, page CRUD, `regenerate()` | engine/albumGenerator, engine/themeEngine, types |
-| `editorStore` | active page, selection, zoom, tool, bottom panel, **`canvasRevision`**, **`cropImageId`**, `selectionRequest` | types |
+| `editorStore` | active page, selection, zoom, tool, bottom panel, **`canvasRevision`**, **`cropImageId`**, `selectionRequest`, `cutoutRequest` (+ `mode` erase/filter), `setEraseMask` / `setFilterMask` history commands | types |
 | `historyStore` | command-pattern undo/redo (≤50) + `revision` | — |
 | `appStore` | recent/saved projects, prefs, toasts, version | types |
 | `collageStore` | standalone Collage tool: folder/records/selection + layout/theme/shape/bg + `phase` | types | in-memory; `CollageView` mirrors it to the hidden collage-session temp file for crash-safe resume |
@@ -185,7 +198,8 @@ Renderer-only (use Fabric/DOM/`window`): `pageRenderer`, `fabricFilters`,
   and `isTextEntry()` / `isRangeInput()`. ⚠ INVARIANT: window-level shortcuts must stand down while the
   user types in a field (Backspace in a caption box must never delete the selected photo).
 - `editor/PropertiesPanel.vue` — selected-IMAGE editor (Transform incl. fit + zoom
-  + crop toggle, Effects, Border [Line: solid/dashed/dotted/double + optional
+  + crop toggle, Effects + **Filter brush** button on the Adjust/Filters tabs (disabled
+  without effects; Partial + Clear when a `filterMask` exists), Border [Line: solid/dashed/dotted/double + optional
   **gradient**; or **Decorative frame**: 13 SVG motifs], Shadow, Caption) + Back.
 - `editor/TextPropertiesPanel.vue` — selected-TEXT editor (content, font family,
   size, weight, italic, colour, align, spacing, line-height, rotation, opacity).
@@ -233,7 +247,8 @@ scan/analyze. `files.ipc.ts` holds the project-free tool ops: `moveToDuplicates`
 clearTemp`, atomic write). Add-photo / eraser IPC: `folder:addPhotos` (file dialog; outside
 files copied to `<sourceFolder>/added/`) and `cutout:saveMask` (writes a new
 `<sourceFolder>/.pebble_masks/<imageId>_<ts>.png`, returns the relative path for
-`PageImage.eraseMask`). Reuses `engine/{filenameParser,similarity}` + `types` only.
+`PageImage.eraseMask`; optional 4th arg `kind = 'filter'` names it
+`<imageId>_fx_<ts>.png` for `PageImage.filterMask`). Reuses `engine/{filenameParser,similarity}` + `types` only.
 ⚠ INVARIANT: all `fs`/native work stays in main; the renderer only calls `window.pebble.*`.
 
 ### mcp/  (the AI tool surface — standalone Node process)
@@ -243,7 +258,7 @@ files copied to `<sourceFolder>/added/`) and `cutout:saveMask` (writes a new
   low-cost JPEG previews with Sharp (`render_page`, `view_image`).
 - `skills/*.md` — overview, workflow, labels, catalogs, tools cheat-sheet (read via
   `read_skill`).
-- ⚠ INVARIANT (**tool parity**, see §2.3b): the 51 tools must equal the GUI's
+- ⚠ INVARIANT (**tool parity**, see §2.3b): the 53 tools must equal the GUI's
   capability set; adding a feature includes adding/extending its tool. Keep small
   hardcoded lists in the server (e.g. `BORDER_FRAMES`) in sync with the engine.
 - **Depends on:** the `.pebble` shape + the `config/`/`assets/` files. **No imports**
