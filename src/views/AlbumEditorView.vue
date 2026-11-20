@@ -487,7 +487,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
 
     <!-- Erase / restore studio (non-destructive mask) -->
     <CutoutEditor v-if="editor.cutoutRequest" :filename="editor.cutoutRequest.filename"
-                  :image-id="editor.cutoutRequest.imageId" @close="editor.closeCutout()" />
+                  :image-id="editor.cutoutRequest.imageId" :mode="editor.cutoutRequest.mode" @close="editor.closeCutout()" />
 
     <AiConnectModal v-model:open="showAi" />
     <PhotoSelectionView v-if="project.meta" :open="showSelect" :folder="project.meta.sourceFolder" :records="project.images"

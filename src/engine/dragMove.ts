@@ -46,7 +46,7 @@ export function movePayloadFromDrop(e: DragEvent): MovePayload | null {
 
 /** The appearance fields a MOVED image keeps (everything but placement). */
 export type CarriedAppearance = Partial<Pick<PageImage,
-  'eraseMask' | 'effects' | 'border' | 'shadow' | 'maskId' | 'opacity' | 'caption' | 'captionStyle' | 'overrides'>>
+  'eraseMask' | 'filterMask' | 'effects' | 'border' | 'shadow' | 'maskId' | 'opacity' | 'caption' | 'captionStyle' | 'overrides'>>
   & { flipX?: boolean; flipY?: boolean };
 
 /**
@@ -64,6 +64,7 @@ export function carriedAppearance(src: PageImage): CarriedAppearance {
     flipX: !!src.position?.flipX, flipY: !!src.position?.flipY,
   };
   if (src.eraseMask) out.eraseMask = src.eraseMask;
+  if (src.filterMask) out.filterMask = src.filterMask;
   if (src.maskId) out.maskId = src.maskId;
   if (src.caption) out.caption = src.caption;
   if (src.captionStyle) out.captionStyle = copy(src.captionStyle);

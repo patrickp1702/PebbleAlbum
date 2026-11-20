@@ -363,7 +363,7 @@ onBeforeUnmount(() => {
 
       <!-- Erase / restore studio (same in-context mask editor as the album) -->
       <CutoutEditor v-if="editor.cutoutRequest" :filename="editor.cutoutRequest.filename"
-                    :image-id="editor.cutoutRequest.imageId" @close="editor.closeCutout()" />
+                    :image-id="editor.cutoutRequest.imageId" :mode="editor.cutoutRequest.mode" @close="editor.closeCutout()" />
     </template>
   </div>
 </template>

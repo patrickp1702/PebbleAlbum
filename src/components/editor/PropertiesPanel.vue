@@ -18,7 +18,7 @@ import AppSegmented from '@/components/ui/AppSegmented.vue';
 import AppTabs from '@/components/ui/AppTabs.vue';
 import { defaultEffects, boxForFit } from '@/engine/collageComposer';
 import { BORDER_FRAMES } from '@/engine/borderFrames';
-import { FILTER_PRESETS } from '@/engine/fabricFilters';
+import { FILTER_PRESETS, buildEffectsFilters } from '@/engine/fabricFilters';
 import { MASKS, maskPathData } from '@/engine/maskShapes';
 import { generatePresetThumbs } from '@/engine/presetThumbs';
 import { loadImageDataUrl } from '@/engine/imageLoader';
@@ -191,6 +191,10 @@ watch(
   },
   { immediate: true },
 );
+/** Filter brush needs something to brush: a preset or any adjust slider off neutral.
+ *  (Vignette alone is an overlay, not part of the masked pipeline.) */
+const hasEffects = computed(() => !!img.value && buildEffectsFilters(img.value.effects).length > 0);
+function openFilterBrush() { if (img.value && hasEffects.value) editor.openCutout(img.value.filename, img.value.id, 'filter'); }
 function setFilter(f: string) { if (img.value) { img.value.effects.filter = f; liveFx(); } }
 const filterStrengthPct = computed(() => Math.round(((img.value?.effects.filterStrength) ?? 1) * 100));
 
@@ -268,6 +272,24 @@ function back() { editor.cropImageId = null; editor.propertiesOpen = false; edit
     <AppTabs v-model="tab" :tabs="TABS" stacked class="px-2" />
 
     <div class="flex-1 min-h-0 overflow-auto p-3 space-y-4 text-sm">
+      <!-- Filter brush (Adjust + Filters tabs): brush the effects off / back on parts of the photo -->
+      <section v-if="tab === 'adjust' || tab === 'filters'" class="space-y-1.5">
+        <div class="flex gap-2">
+          <button type="button" class="pa-btn flex-1" :disabled="!hasEffects"
+                  :title="hasEffects ? 'Brush the filter and adjustments off parts of this photo — and back on; non-destructive.' : 'Apply a filter or adjustment first.'"
+                  @click="openFilterBrush">
+            <AppIcon name="brush" :size="15" /> Filter brush
+            <span v-if="img.filterMask" class="pa-chip">Partial</span>
+          </button>
+          <AppButton v-if="img.filterMask" variant="ghost" title="Apply the filter to the whole photo again (undoable)"
+                     @click="editor.setFilterMask(img, undefined, 'Clear filter brush')">Clear</AppButton>
+        </div>
+        <p class="pa-hint">
+          {{ hasEffects ? 'Brush the filter away from parts of the photo, or paint it back in.'
+                        : 'Apply a filter or adjustment first, then brush it on or off parts of the photo.' }}
+        </p>
+      </section>
+
       <!-- Move / Transform -->
       <template v-if="tab === 'transform'">
         <section v-if="img.slotRect" class="space-y-2.5">

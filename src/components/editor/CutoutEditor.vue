@@ -30,6 +30,14 @@
  * ⚠ The working resolution EQUALS the saved-mask resolution (≤ MASK_MAX), so
  * a mask that is reopened and re-applied is copied 1:1 — never resampled
  * (an upscale→downscale round trip softened hard edges on every Apply).
+ *
+ * **Filter brush** (`mode="filter"`, page images only): the SAME studio edits
+ * `pi.filterMask` instead (alpha = how much of the photo's effects apply).
+ * "Remove filter" = the erase brush on that mask, "Restore filter" = restore;
+ * the preview is original·(1−m) + filtered·m (maskBlend — the renderer's own
+ * step), with the photo's erase mask still applied on top. Apply saves only the
+ * mask (`<imageId>_fx_<ts>.png`) through `editor.setFilterMask`; Reset = filter
+ * everywhere. AI removal and sticker output are hidden in this mode.
  */
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { FabricImage } from 'fabric';
@@ -38,6 +46,7 @@ import { useEditorStore } from '@/stores/editorStore';
 import { useAppStore } from '@/stores/appStore';
 import { computeImagePlacement, renderPageStatic, applyEffects, displayRectOf } from '@/engine/pageRenderer';
 import { maskPathData, buildMaskPath } from '@/engine/maskShapes';
+import { blendThroughMask } from '@/engine/maskBlend';
 import { loadImageDataUrl } from '@/engine/imageLoader';
 import AppSlider from '@/components/ui/AppSlider.vue';
 import AppButton from '@/components/ui/AppButton.vue';
@@ -46,7 +55,20 @@ import AppIconButton from '@/components/ui/AppIconButton.vue';
 import AppSegmented from '@/components/ui/AppSegmented.vue';
 import type { AlbumPage, PageImage } from '@shared/pebble.types';
 
-const props = defineProps<{ filename: string; imageId?: string | null }>();
+const props = defineProps<{ filename: string; imageId?: string | null; mode?: 'erase' | 'filter' }>();
+/** Filter brush: edit `filterMask` (needs a page image). Fixed for the studio's lifetime. */
+const fxMode = props.mode === 'filter' && !!props.imageId;
+const TOOL_OPTIONS = fxMode
+  ? [
+      { value: 'erase', label: 'Remove filter', icon: 'eraser', title: 'Remove filter — brush the original photo back (E)' },
+      { value: 'restore', label: 'Restore filter', icon: 'brush', title: 'Restore filter — paint the filter back in (R)' },
+      { value: 'pan', label: 'Pan', icon: 'move', title: 'Pan the view (or hold Space)' },
+    ] as const
+  : [
+      { value: 'erase', label: 'Erase', icon: 'eraser', title: 'Erase — brush parts away (E)' },
+      { value: 'restore', label: 'Restore', icon: 'brush', title: 'Restore — paint the photo back (R)' },
+      { value: 'pan', label: 'Pan', icon: 'move', title: 'Pan the view (or hold Space)' },
+    ] as const;
 const emit = defineEmits<{ (e: 'close'): void }>();
 
 const project = useProjectStore();
@@ -86,7 +108,9 @@ const inContext = ref(false);
 // Working buffers (capped resolution, allocated ONCE — never per frame).
 let src: HTMLCanvasElement | null = null;      // original pixels (sticker / AI input)
 let fx: HTMLCanvasElement | null = null;       // src with the photo's effects (display only)
-let mask: HTMLCanvasElement | null = null;     // committed alpha (white, alpha = keep)
+let mask: HTMLCanvasElement | null = null;     // committed alpha (white, alpha = keep; filter mode: alpha = filter amount)
+let keep: HTMLCanvasElement | null = null;     // filter mode only: the photo's erase mask (alpha = keep), applied on top
+let blendScratch: HTMLCanvasElement | null = null; // filter mode only: reusable maskBlend scratch
 let stroke: HTMLCanvasElement | null = null;   // in-progress stroke (dabs at full alpha)
 let eff: HTMLCanvasElement | null = null;      // scratch: mask ± stroke at brush opacity
 let composed: HTMLCanvasElement | null = null; // fx masked by eff — what is drawn
@@ -211,9 +235,10 @@ async function loadAll() {
     clip = buildClip(pi);
     // Resume a previous session: the saved mask is the starting state (raw PNG
     // — the thumbnail loader would turn it into an alpha-less JPEG).
-    if (pi.eraseMask) {
+    const startMask = fxMode ? pi.filterMask : pi.eraseMask;
+    if (startMask) {
       try {
-        const m = await loadImg(await window.pebble.readImageBase64(`${folder}/${pi.eraseMask}`));
+        const m = await loadImg(await window.pebble.readImageBase64(`${folder}/${startMask}`));
         mc.clearRect(0, 0, W, H);
         if (m.naturalWidth === W && m.naturalHeight === H) {
           mc.drawImage(m, 0, 0); // same resolution → exact 1:1 copy (no resampling)
@@ -221,8 +246,25 @@ async function loadAll() {
           mc.imageSmoothingQuality = 'high';
           mc.drawImage(m, 0, 0, W, H); // stretched over the WHOLE photo
         }
-      } catch { app.toast('Could not read the saved erase mask — starting from the full photo.', 'warning'); }
+      } catch {
+        app.toast(fxMode ? 'Could not read the saved filter mask — starting with the filter everywhere.'
+          : 'Could not read the saved erase mask — starting from the full photo.', 'warning');
+      }
     }
+    // The OTHER mask, for display only: in filter mode the erase mask still cuts
+    // the photo; in erase mode a filter mask still blends the effects.
+    const otherMask = fxMode ? pi.eraseMask : pi.filterMask;
+    let otherImg: HTMLImageElement | null = null;
+    if (otherMask) {
+      try { otherImg = await loadImg(await window.pebble.readImageBase64(`${folder}/${otherMask}`)); } catch { otherImg = null; }
+    }
+    if (fxMode && otherImg) {
+      keep = makeCanvas(W, H);
+      const kc = keep.getContext('2d')!;
+      kc.imageSmoothingQuality = 'high';
+      kc.drawImage(otherImg, 0, 0, W, H); // stretched over the WHOLE photo
+    }
+    if (fxMode) blendScratch = makeCanvas(1, 1);
     // Effects for display only (the mask is independent of them).
     try {
       const fimg = new FabricImage(src);
@@ -235,6 +277,8 @@ async function loadAll() {
         fimg.dispose();
       }
     } catch { fx = null; }
+    // Erase mode over a partially filtered photo: show it as the page does.
+    if (!fxMode && fx && otherImg) blendThroughMask(fx, src, otherImg);
     void buildBackdrop();
   } else {
     AW = W; AH = H; P = new DOMMatrix(); placeScale = 1;
@@ -348,6 +392,24 @@ function recompose(b: Box) {
   }
   ec.restore();
   const cc = composed.getContext('2d')!;
+  if (fxMode) {
+    // Filter brush: composed = original·(1−m) + filtered·m (the renderer's own
+    // blend), then the photo's erase mask on top.
+    cc.save();
+    cc.beginPath(); cc.rect(r.x, r.y, r.w, r.h); cc.clip();
+    cc.clearRect(r.x, r.y, r.w, r.h);
+    cc.drawImage(fx ?? src, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    cc.restore();
+    blendThroughMask(composed, src, eff, r, blendScratch);
+    if (keep) {
+      cc.save();
+      cc.beginPath(); cc.rect(r.x, r.y, r.w, r.h); cc.clip();
+      cc.globalCompositeOperation = 'destination-in';
+      cc.drawImage(keep, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+      cc.restore();
+    }
+    return;
+  }
   cc.save();
   cc.beginPath(); cc.rect(r.x, r.y, r.w, r.h); cc.clip();
   cc.clearRect(r.x, r.y, r.w, r.h);
@@ -675,7 +737,8 @@ function isFullyOpaque(c: HTMLCanvasElement): boolean {
 
 /**
  * Save ONLY the mask (long side ≤ MASK_MAX) and point the page image at it via
- * a history command. A fully opaque mask clears `eraseMask` instead of saving.
+ * a history command. A fully opaque mask clears `eraseMask` instead of saving
+ * (filter mode: clears `filterMask` = filter everywhere).
  */
 async function applyMask() {
   if (!pi || !project.meta || !mask || saving.value || drawing) return;
@@ -694,13 +757,16 @@ async function applyMask() {
     }
     const next = isFullyOpaque(out)
       ? undefined
-      : (await window.pebble.saveEraseMask(project.meta.sourceFolder, pi.id, out.toDataURL('image/png'))).relativePath;
-    if (next !== pi.eraseMask) editor.setEraseMask(pi, next, next ? 'Erase / restore photo' : 'Clear erasing');
+      : (await window.pebble.saveEraseMask(project.meta.sourceFolder, pi.id, out.toDataURL('image/png'), fxMode ? 'filter' : 'erase')).relativePath;
+    if (fxMode) {
+      if (next !== pi.filterMask) editor.setFilterMask(pi, next, next ? 'Filter brush' : 'Clear filter brush');
+    } else if (next !== pi.eraseMask) editor.setEraseMask(pi, next, next ? 'Erase / restore photo' : 'Clear erasing');
     edited.value = false;
-    app.toast(next ? 'Erasing applied — reopen anytime to restore.' : 'Nothing erased — photo shown in full.', 'success');
+    if (fxMode) app.toast(next ? 'Filter brush applied — reopen anytime to change it.' : 'Filter applied everywhere.', 'success');
+    else app.toast(next ? 'Erasing applied — reopen anytime to restore.' : 'Nothing erased — photo shown in full.', 'success');
     emit('close');
   } catch {
-    app.toast('Could not save the erase mask.', 'error');
+    app.toast(fxMode ? 'Could not save the filter mask.' : 'Could not save the erase mask.', 'error');
   } finally {
     saving.value = false;
   }
@@ -719,7 +785,7 @@ async function saveAsSticker() {
 
 function requestClose() {
   // eslint-disable-next-line no-alert
-  if (edited.value && inContext.value && !window.confirm('Discard your unapplied erase/restore changes?')) return;
+  if (edited.value && inContext.value && !window.confirm(fxMode ? 'Discard your unapplied filter brush changes?' : 'Discard your unapplied erase/restore changes?')) return;
   emit('close');
 }
 
@@ -795,9 +861,9 @@ onBeforeUnmount(() => {
     <!-- Tool panel: tool choice → brush → history → view → extras; the primary action is pinned at the foot -->
     <div class="w-80 shrink-0 bg-pebble-surface border-l border-pebble-border flex flex-col">
       <header class="pl-3 pr-2 h-12 shrink-0 border-b border-pebble-border flex items-center gap-2.5">
-        <AppIcon :name="inContext ? 'eraser' : 'scissors'" :size="18" class="text-pebble-text-dim" />
+        <AppIcon :name="fxMode ? 'brush' : inContext ? 'eraser' : 'scissors'" :size="18" class="text-pebble-text-dim" />
         <div class="min-w-0 flex-1">
-          <div class="text-sm font-semibold leading-tight">{{ inContext ? 'Erase / restore' : 'Cutout studio' }}</div>
+          <div class="text-sm font-semibold leading-tight">{{ fxMode ? 'Filter brush' : inContext ? 'Erase / restore' : 'Cutout studio' }}</div>
           <div class="text-2xs text-pebble-text-dim truncate" :title="filename">{{ filename }}</div>
         </div>
         <AppIconButton icon="x" label="Close" shortcut="Esc" @click="requestClose" />
@@ -807,11 +873,7 @@ onBeforeUnmount(() => {
         <!-- Tool: the one choice that changes what the pointer does -->
         <section class="space-y-1.5">
           <div class="pa-section">Tool</div>
-          <AppSegmented v-model="tool" size="lg" :options="[
-            { value: 'erase', label: 'Erase', icon: 'eraser', title: 'Erase — brush parts away (E)' },
-            { value: 'restore', label: 'Restore', icon: 'brush', title: 'Restore — paint the photo back (R)' },
-            { value: 'pan', label: 'Pan', icon: 'move', title: 'Pan the view (or hold Space)' },
-          ]" />
+          <AppSegmented v-model="tool" size="lg" :options="TOOL_OPTIONS" />
         </section>
 
         <section class="space-y-2">
@@ -826,14 +888,19 @@ onBeforeUnmount(() => {
               <AppIcon name="chevron-right" :size="12" class="transition-transform group-open:rotate-90" />Tips &amp; shortcuts
             </summary>
             <div class="mt-1.5 space-y-2">
-            <p class="pa-hint">
+            <p v-if="fxMode" class="pa-hint">
+              Remove filter brushes the original photo back where you paint;
+              Restore filter paints the filter back in. Low opacity + soft hardness
+              blends gradually; 100% opacity removes the filter outright.
+            </p>
+            <p v-else class="pa-hint">
               Low opacity + soft hardness, then brush the edges/corners in passes —
               each pass fades a little more, blending the photo into the page.
               100% opacity erases outright; Restore paints the photo back.
             </p>
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 pa-hint">
               <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">[</kbd><kbd class="pa-kbd">]</kbd> size</span>
-              <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">E</kbd><kbd class="pa-kbd">R</kbd> erase / restore</span>
+              <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">E</kbd><kbd class="pa-kbd">R</kbd> {{ fxMode ? 'remove / restore filter' : 'erase / restore' }}</span>
               <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">Space</kbd> pan</span>
               <span class="inline-flex items-center gap-1"><kbd class="pa-kbd">Scroll</kbd> zoom</span>
             </div>
@@ -851,7 +918,9 @@ onBeforeUnmount(() => {
               <AppIcon name="redo" :size="14" /> Redo
             </button>
           </div>
-          <AppButton size="sm" variant="ghost" icon="rotate-ccw" block :disabled="loading" title="Restore everything (undoable)" @click="resetMask">Reset (restore everything)</AppButton>
+          <AppButton size="sm" variant="ghost" icon="rotate-ccw" block :disabled="loading"
+                     :title="fxMode ? 'Apply the filter everywhere again (undoable)' : 'Restore everything (undoable)'"
+                     @click="resetMask">{{ fxMode ? 'Reset (filter everywhere)' : 'Reset (restore everything)' }}</AppButton>
         </section>
 
         <section class="space-y-1.5">
@@ -864,12 +933,12 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <section class="space-y-1.5">
+        <section v-if="!fxMode" class="space-y-1.5">
           <div class="pa-section">Automatic</div>
           <AppButton variant="secondary" icon="sparkles" block :disabled="aiBusy || loading" @click="removeBackgroundAI">Remove background (AI)</AppButton>
         </section>
 
-        <section class="space-y-1.5">
+        <section v-if="!fxMode" class="space-y-1.5">
           <div class="pa-section">Sticker</div>
           <label class="block">
             <span class="pa-label block mb-1">Sticker name</span>
@@ -882,7 +951,8 @@ onBeforeUnmount(() => {
 
       <!-- Pinned footer: the one primary action never scrolls away -->
       <footer class="shrink-0 border-t border-pebble-border bg-pebble-surface p-3 space-y-2">
-        <p v-if="inContext" class="pa-hint">Non-destructive: the original photo is kept, so you can reopen and restore anytime.</p>
+        <p v-if="fxMode" class="pa-hint">Non-destructive: only the filter mask is saved; the photo and its filter settings are untouched.</p>
+        <p v-else-if="inContext" class="pa-hint">Non-destructive: the original photo is kept, so you can reopen and restore anytime.</p>
         <div class="flex gap-2">
           <AppButton variant="ghost" size="lg" @click="requestClose">Cancel</AppButton>
           <AppButton v-if="inContext" size="lg" icon="check" class="flex-1" :disabled="saving || loading" @click="applyMask">Apply</AppButton>

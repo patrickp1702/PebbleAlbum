@@ -64,11 +64,12 @@ let t: ReturnType<typeof setTimeout> | null = null;
 watch(() => editor.canvasRevision, () => { if (t) clearTimeout(t); t = setTimeout(() => enqueue(editor.activePageIndex), 600); });
 // Capture edits on the page we just left.
 watch(() => editor.activePageIndex, (_n, old) => { if (old != null) enqueue(old); });
-// Erase-mask changes on ANY page (e.g. undo/redo of an erase while another page
-// is active) — only the active page is re-thumbnailed above, so watch a cheap
-// per-page signature of mask paths and enqueue just the pages whose masks
-// changed. (Mask files are unique per save, so a path change == a pixel change.)
-const maskSig = (p: AlbumPage) => p.images.map((im) => im.eraseMask ?? '').join('|');
+// Erase / filter-brush mask changes on ANY page (e.g. undo/redo of an erase
+// while another page is active) — only the active page is re-thumbnailed above,
+// so watch a cheap per-page signature of mask paths and enqueue just the pages
+// whose masks changed. (Mask files are unique per save, so a path change == a
+// pixel change.)
+const maskSig = (p: AlbumPage) => p.images.map((im) => `${im.eraseMask ?? ''}>${im.filterMask ?? ''}`).join('|');
 watch(
   () => project.pages.map((p) => `${p.id}\n${maskSig(p)}`),
   (now, before) => {
