@@ -1,8 +1,9 @@
 /**
  * editorStore.ts — Transient editor UI state (not persisted to .pebble):
  * active page, selection, zoom, current tool, and which bottom panel is open.
- * Also hosts `setEraseMask`, the ONE undoable way to change a photo's erase
- * mask (shared by the Erase/restore studio and the properties panel).
+ * Also hosts `setEraseMask` / `setFilterMask`, the ONE undoable way to change a
+ * photo's erase / Filter-brush mask (shared by the brush studio and the
+ * properties panel).
  */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
@@ -95,10 +96,12 @@ export const useEditorStore = defineStore('editor', () => {
   /** While true, the canvas temporarily shows images WITHOUT effects (hold-to-compare). */
   const compareOriginal = ref(false);
 
-  /** Open Cutout Studio for a source photo (optionally bound to a page image). */
-  const cutoutRequest = ref<{ filename: string; imageId: string | null } | null>(null);
-  function openCutout(filename: string, imageId: string | null = null): void {
-    cutoutRequest.value = { filename, imageId };
+  /** Open Cutout Studio for a source photo (optionally bound to a page image).
+   *  `mode` 'filter' opens the same brush studio as the Filter brush (edits
+   *  `filterMask` instead of `eraseMask`; needs a page image). */
+  const cutoutRequest = ref<{ filename: string; imageId: string | null; mode: 'erase' | 'filter' } | null>(null);
+  function openCutout(filename: string, imageId: string | null = null, mode: 'erase' | 'filter' = 'erase'): void {
+    cutoutRequest.value = { filename, imageId, mode: imageId ? mode : 'erase' };
   }
   function closeCutout(): void { cutoutRequest.value = null; }
 
@@ -119,11 +122,28 @@ export const useEditorStore = defineStore('editor', () => {
     useHistoryStore().run({ type: 'eraseMask', description, execute: () => set(next), undo: () => set(prev) });
   }
 
+  /**
+   * Filter brush: point a page image at a new FILTER mask (or clear it with
+   * `undefined` = filter everywhere) as a history command — the exact mirror of
+   * setEraseMask (each save is a new file, so undo/redo swaps the path; both
+   * directions re-render so the photo is re-blended).
+   */
+  function setFilterMask(pi: PageImage, next: string | undefined, description = 'Filter brush'): void {
+    const project = useProjectStore();
+    const prev = pi.filterMask;
+    const set = (v: string | undefined) => {
+      if (v) pi.filterMask = v; else delete pi.filterMask;
+      project.markDirty();
+      requestRender();
+    };
+    useHistoryStore().run({ type: 'filterMask', description, execute: () => set(next), undo: () => set(prev) });
+  }
+
   return {
     canvasRevision, requestRender, selectionRequest, requestSelect, propertiesOpen,
     liveUpdateRequest, requestLiveUpdate,
     effectsUpdateRequest, requestEffectsUpdate, compareOriginal,
-    cutoutRequest, openCutout, closeCutout, setEraseMask,
+    cutoutRequest, openCutout, closeCutout, setEraseMask, setFilterMask,
     activePageIndex, selectedObjectId, selectedType, zoom, tool, bottomPanel,
     cropMode, cropImageId, guides, isAnimatingPageTurn, hasSelection, zoomPercent,
     selectObject, setPage, setZoom, zoomIn, zoomOut, resetZoom, addGuide, clearGuides,

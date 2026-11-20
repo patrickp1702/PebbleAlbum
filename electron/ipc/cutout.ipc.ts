@@ -51,16 +51,18 @@ export async function saveCutout(sourceFolder: string, baseName: string, dataUrl
 }
 
 /**
- * Save an erase-mask PNG (alpha = keep) under `<sourceFolder>/.pebble_masks/`.
- * Every save is a NEW file (`<imageId>_<timestamp>.png`) so undo/redo can swap
- * between mask paths and no loader ever serves a stale cached mask.
+ * Save a mask PNG under `<sourceFolder>/.pebble_masks/`: an erase mask (alpha =
+ * keep, `<imageId>_<timestamp>.png`) or, with `kind = 'filter'`, a Filter-brush
+ * mask (alpha = how much of the effects apply, `<imageId>_fx_<timestamp>.png`).
+ * Every save is a NEW file so undo/redo can swap between mask paths and no
+ * loader ever serves a stale cached mask.
  */
-export async function saveEraseMask(sourceFolder: string, imageId: string, dataUrl: string): Promise<{ relativePath: string }> {
+export async function saveEraseMask(sourceFolder: string, imageId: string, dataUrl: string, kind?: string): Promise<{ relativePath: string }> {
   const root = path.resolve(sourceFolder);
   const dir = path.join(root, '.pebble_masks');
   await fs.mkdir(dir, { recursive: true });
   const stem = imageId.replace(/[^a-z0-9_-]/gi, '') || 'mask';
-  const out = path.join(dir, `${stem}_${Date.now()}.png`);
+  const out = path.join(dir, `${stem}${kind === 'filter' ? '_fx' : ''}_${Date.now()}.png`);
   await fs.writeFile(out, dataUrlToBuffer(dataUrl));
   return { relativePath: path.relative(root, out).split(path.sep).join('/') };
 }
@@ -105,7 +107,7 @@ export async function deleteSticker(p: string): Promise<void> {
 
 export function registerCutoutIpc(): void {
   ipcMain.handle('cutout:save', (_e, sourceFolder: string, baseName: string, dataUrl: string) => saveCutout(sourceFolder, baseName, dataUrl));
-  ipcMain.handle('cutout:saveMask', (_e, sourceFolder: string, imageId: string, dataUrl: string) => saveEraseMask(sourceFolder, imageId, dataUrl));
+  ipcMain.handle('cutout:saveMask', (_e, sourceFolder: string, imageId: string, dataUrl: string, kind?: string) => saveEraseMask(sourceFolder, imageId, dataUrl, kind));
   ipcMain.handle('stickers:save',(_e, dataUrl: string, name?: string) => saveSticker(dataUrl, name));
   ipcMain.handle('stickers:list', () => listStickers());
   ipcMain.handle('stickers:delete', (_e, p: string) => deleteSticker(p));

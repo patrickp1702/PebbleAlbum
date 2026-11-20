@@ -16,6 +16,7 @@ import { getThemeFilterCSS } from './themeEngine';
 import { overlayDataUrl } from '@/config/overlays';
 import { stickerDataUrl } from '@/config/stickers';
 import { borderFrameDataUrl, getBorderFrame } from './borderFrames';
+import { blendThroughMask } from './maskBlend';
 
 /** Loader that turns a project-relative filename into a data URL. */
 export type ImageLoader = (filename: string) => Promise<string>;
@@ -154,6 +155,33 @@ export function applyEffects(img: FabricImage, pi: PageImage): void {
   img.filters = stack;
   if (stack.length || (img as unknown as { __hadFilters?: boolean }).__hadFilters) applyFiltersSafe(img);
   (img as unknown as { __hadFilters?: boolean }).__hadFilters = stack.length > 0;
+  applyFilterMask(img);
+}
+
+/** The decoded Filter-brush mask attached to a Fabric photo by buildImageObject. */
+type WithFilterMask = { pebbleFilterMask?: CanvasImageSource | null };
+
+/**
+ * Filter brush (`PageImage.filterMask`): after Fabric has filtered the photo,
+ * blend the ORIGINAL pixels back in through the mask, in place on Fabric's
+ * filtered canvas (see maskBlend.ts) — result = original·(1−m) + filtered·m.
+ * Runs after EVERY (re)filter, so the in-place slider updates, the initial
+ * build and the restore after hold-to-compare all agree. When the filter stack
+ * is empty Fabric draws the original element itself → nothing to blend
+ * (hold-to-compare clears the stack, so it shows the original as before).
+ * Pure 2D compositing on the 2D canvas Fabric hands back from BOTH backends
+ * (WebGL copies its output into it), so no GL texture is created or leaked.
+ */
+export function applyFilterMask(img: FabricImage): void {
+  const mask = (img as unknown as WithFilterMask).pebbleFilterMask;
+  if (!mask) return;
+  const el = img.getElement() as unknown;
+  const orig = (img as unknown as { _originalElement?: unknown })._originalElement;
+  if (!orig || el === orig || !(el instanceof HTMLCanvasElement)) return; // unfiltered → original shows
+  try {
+    blendThroughMask(el, orig as CanvasImageSource, mask);
+    img.set('dirty', true);
+  } catch { /* 2D canvas unavailable → leave the fully filtered photo */ }
 }
 
 /**
@@ -225,6 +253,12 @@ function isSafeRelativePath(rel: string): boolean {
   return !rel.split(/[\\/]+/).some((seg) => seg === '..');
 }
 
+/** Filter-brush mask loader (`PageImage.filterMask`): the same raw-PNG, LRU-cached,
+ *  path-guarded loader as the erase mask (same storage rules). */
+export function loadFilterMask(sourceFolder: string | undefined, maskPath: string | undefined): Promise<string | null> {
+  return loadEraseMask(sourceFolder, maskPath);
+}
+
 export function loadEraseMask(sourceFolder: string | undefined, maskPath: string | undefined): Promise<string | null> {
   if (!maskPath || typeof window === 'undefined' || !window.pebble) return Promise.resolve(null);
   if (!isSafeRelativePath(maskPath)) return Promise.resolve(null);
@@ -283,8 +317,12 @@ async function bakeEraseMask(dataUrl: string, maskUrl: string, crossOrigin: 'ano
  * `loadEraseMask`) is the optional erase mask; it is baked into the pixels
  * first (see bakeEraseMask). An undecodable mask falls back to the plain photo.
  * With no mask the photo loads exactly as it always has.
+ * `filterMaskUrl` (from `loadFilterMask`) is the optional Filter-brush mask: it
+ * is decoded once and kept on the object, and `applyEffects` blends the
+ * original back in through it after every filter pass (see applyFilterMask).
+ * An undecodable filter mask falls back to "filter everywhere".
  */
-export async function buildImageObject(pi: PageImage, dataUrl: string, maskUrl?: string | null): Promise<FabricImage> {
+export async function buildImageObject(pi: PageImage, dataUrl: string, maskUrl?: string | null, filterMaskUrl?: string | null): Promise<FabricImage> {
   // Only set crossOrigin for remote URLs; doing so for file:// or data: URLs can
   // make Chromium fail the load.
   const remote = /^https?:/i.test(dataUrl);
@@ -293,6 +331,12 @@ export async function buildImageObject(pi: PageImage, dataUrl: string, maskUrl?:
     try { img = new FabricImage(await bakeEraseMask(dataUrl, maskUrl, remote ? 'anonymous' : null)); } catch { img = null; /* bad mask → plain photo */ }
   }
   if (!img) img = await FabricImage.fromURL(dataUrl, remote ? { crossOrigin: 'anonymous' } : {});
+  if (filterMaskUrl) {
+    try {
+      const fm = await util.loadImage(filterMaskUrl);
+      if (fm.naturalWidth || fm.width) (img as unknown as WithFilterMask).pebbleFilterMask = fm;
+    } catch { /* bad filter mask → filter everywhere */ }
+  }
   const { position } = pi;
   const imgW = img.width || 1;
   const imgH = img.height || 1;
@@ -722,8 +766,11 @@ export async function renderPageStatic(
       // Erase mask (raw PNG, never the thumbnail pipeline) — null when absent/unreadable.
       // eslint-disable-next-line no-await-in-loop
       const maskUrl = await loadEraseMask(meta.sourceFolder, pi.eraseMask);
+      // Filter-brush mask (same rules) — null → filter everywhere.
       // eslint-disable-next-line no-await-in-loop
-      const obj = await buildImageObject(pi, url, maskUrl);
+      const fxMaskUrl = await loadFilterMask(meta.sourceFolder, pi.filterMask);
+      // eslint-disable-next-line no-await-in-loop
+      const obj = await buildImageObject(pi, url, maskUrl, fxMaskUrl);
       canvas.add(obj);
       const chromeRect = displayRectOf(pi, obj.width || 1, obj.height || 1);
       const vig = buildVignetteOverlay(pi, chromeRect);

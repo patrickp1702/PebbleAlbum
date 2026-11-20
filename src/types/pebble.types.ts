@@ -211,6 +211,18 @@ export interface PageImage {
    * undo/redo is just swapping this path.
    */
   eraseMask?: string;
+  /**
+   * Non-destructive FILTER MASK (the "Filter brush": PicsArt-style partial
+   * filter). Same storage rules as `eraseMask` — project-relative PNG under
+   * `.pebble_masks/`, a NEW file per save, in UN-FLIPPED source-pixel space,
+   * stretched over the WHOLE photo. Its ALPHA is how much of `effects` applies
+   * per pixel: 255 = fully filtered, 0 = the original photo. Covers the whole
+   * per-pixel colour pipeline of `effects` (named preset at its strength + every
+   * adjust slider incl. blur / sharpen / grain); separate overlay objects
+   * (vignette, border, shadow) are NOT masked. Absent = filter everywhere.
+   * The erase mask is applied on top, as without a filter mask.
+   */
+  filterMask?: string;
   crop: CropRect;
   parsedLabels: ParsedImageLabels;
   overrides: Partial<ParsedImageLabels>;

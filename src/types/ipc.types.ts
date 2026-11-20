@@ -153,9 +153,11 @@ export interface PebbleApi {
   saveCutout: (sourceFolder: string, baseName: string, dataUrl: string) => Promise<CutoutSaveResult>;
   /** Save a PNG into the global My Stickers library (~/PebbleAlbum/stickers). */
   saveSticker: (dataUrl: string, name?: string) => Promise<CustomSticker>;
-  /** Save an erase-mask PNG (alpha = keep) as a NEW file under
-   *  `<sourceFolder>/.pebble_masks/`. Returns its project-relative path. */
-  saveEraseMask: (sourceFolder: string, imageId: string, dataUrl: string) => Promise<{ relativePath: string }>;
+  /** Save a mask PNG as a NEW file under `<sourceFolder>/.pebble_masks/` and
+   *  return its project-relative path. `kind` 'erase' (default; alpha = keep →
+   *  `<imageId>_<ts>.png`) or 'filter' (alpha = filter amount, the Filter brush →
+   *  `<imageId>_fx_<ts>.png`). */
+  saveEraseMask: (sourceFolder: string, imageId: string, dataUrl: string, kind?: 'erase' | 'filter') => Promise<{ relativePath: string }>;
   /** "Add photo": file dialog (multi-select). Files outside the album folder are
    *  copied into `<sourceFolder>/added/`. Returns a registry record per photo. */
   addPhotos: (sourceFolder: string) => Promise<ImageRecord[]>;

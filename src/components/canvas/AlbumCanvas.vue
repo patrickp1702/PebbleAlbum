@@ -26,7 +26,7 @@ import { useHistoryStore } from '@/stores/historyStore';
 import {
   buildImageObject, buildBorderRect, buildBorderFrameImage, buildTextObject, buildBackgroundDataUrl, buildStickerObjectAsync,
   buildSvgOverlayObjects, buildSvgBackgroundObjects, buildThemeBackground, buildPageBackgroundDataUrl, computeImagePlacement,
-  buildVignetteOverlay, applyEffects, applyFiltersSafe, displayRectOf, loadEraseMask,
+  buildVignetteOverlay, applyEffects, applyFiltersSafe, displayRectOf, loadEraseMask, loadFilterMask,
 } from '@/engine/pageRenderer';
 import { defaultEffects } from '@/engine/collageComposer';
 import { buildMaskPath } from '@/engine/maskShapes';
@@ -139,8 +139,12 @@ async function render() {
       // eslint-disable-next-line no-await-in-loop
       const maskUrl = await loadEraseMask(project.meta.sourceFolder, pi.eraseMask);
       if (stale()) return done();
+      // Filter-brush mask (same raw-PNG rules); null → filter everywhere.
       // eslint-disable-next-line no-await-in-loop
-      const obj = await buildImageObject(pi, url, maskUrl);
+      const fxMaskUrl = await loadFilterMask(project.meta.sourceFolder, pi.filterMask);
+      if (stale()) return done();
+      // eslint-disable-next-line no-await-in-loop
+      const obj = await buildImageObject(pi, url, maskUrl, fxMaskUrl);
       // Borders / decorative frames / vignette hug the photo's VISIBLE bounds.
       const chromeRect = displayRectOf(pi, obj.width || 1, obj.height || 1);
       let border: FabricObject | null = null;

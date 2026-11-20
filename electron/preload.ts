@@ -70,7 +70,7 @@ const api: PebbleApi = {
   // Cutout Studio + custom stickers
   saveCutout: (sourceFolder, baseName, dataUrl) => ipcRenderer.invoke('cutout:save', sourceFolder, baseName, dataUrl),
   saveSticker: (dataUrl, name) => ipcRenderer.invoke('stickers:save', dataUrl, name),
-  saveEraseMask: (sourceFolder, imageId, dataUrl) => ipcRenderer.invoke('cutout:saveMask', sourceFolder, imageId, dataUrl),
+  saveEraseMask: (sourceFolder, imageId, dataUrl, kind) => ipcRenderer.invoke('cutout:saveMask', sourceFolder, imageId, dataUrl, kind),
   addPhotos: (sourceFolder) => ipcRenderer.invoke('folder:addPhotos', sourceFolder),
   listCustomStickers: () => ipcRenderer.invoke('stickers:list'),
   deleteCustomSticker: (p) => ipcRenderer.invoke('stickers:delete', p),
