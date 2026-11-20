@@ -71,7 +71,8 @@ function themeById(id) { return THEMES.find((t) => t.id === id) || THEMES[0]; }
 //   • read/write the .pebble project file, inside PEBBLE_HOME (+ its .bak),
 //   • read image files INSIDE the project's album source folder, and
 //   • write new files ONLY into <sourceFolder>/cutouts/ (remove_background) and
-//     <sourceFolder>/.pebble_masks/ (erase_image_region), both album-confined.
+//     <sourceFolder>/.pebble_masks/ (erase_image_region, mask_image_filter_region),
+//     both album-confined.
 // Forbidden: writes/deletes anywhere else, reads outside the album folder,
 // absolute paths, "../" traversal, and symlink escapes. (This server deletes no
 // files at all.) Every file-touching path goes through the helpers below.
@@ -377,28 +378,249 @@ function buildOverlaySvg(proj, page, scale, W, H) {
  * resizing to the cover size and EXTRACTING the focal window (so faces survive).
  * Manual / free / contain photos use a plain cover/contain resize.
  */
-/** Apply an image's erase mask to the WHOLE (EXIF-rotated) source at a working size. Null → no/unreadable mask. */
-async function loadMaskedSource(proj, pi, work) {
-  if (!pi.eraseMask) return null;
+// ---------------------------------------------------------------------------
+// Photo effects for the previews — a port of src/engine/fabricFilters.ts onto
+// Fabric v6's own Canvas2D filter maths (Uint8Clamped after every filter, like
+// Fabric's 2D backend), so render_page shows the same filter/adjust look as the
+// app. Vignette is an overlay object in the app, not part of this pipeline (and
+// not drawn here).
+// ---------------------------------------------------------------------------
+const fxMix = (n, f, s) => n + (f - n) * s;
+const fxWarm = (s) => [fxMix(1, 1.1, s), 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, fxMix(1, 0.85, s), 0, 0, 0, 0, 0, 1, 0];
+const fxCool = (s) => [fxMix(1, 0.9, s), 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, fxMix(1, 1.15, s), 0, 0, 0, 0, 0, 1, 0];
+const FX_MATRICES = {
+  sepia: [0.393, 0.769, 0.189, 0, 0, 0.349, 0.686, 0.168, 0, 0, 0.272, 0.534, 0.131, 0, 0, 0, 0, 0, 1, 0],
+  kodachrome: [1.12855, -0.39673, -0.03992, 0, 0.24991, -0.16404, 1.08352, -0.05498, 0, 0.09698, -0.16786, -0.56034, 1.60148, 0, 0.13972, 0, 0, 0, 1, 0],
+  technicolor: [1.91252, -0.85453, -0.09155, 0, 0.04624, -0.30878, 1.76589, -0.10601, 0, -0.27589, -0.2311, -0.75018, 1.84759, 0, 0.12137, 0, 0, 0, 1, 0],
+  polaroid: [1.438, -0.062, -0.062, 0, 0, -0.122, 1.378, -0.122, 0, 0, -0.016, -0.016, 1.483, 0, 0, 0, 0, 0, 1, 0],
+  vintage: [0.62793, 0.32021, -0.03965, 0, 0.03784, 0.02578, 0.64411, 0.03259, 0, 0.02926, 0.0466, -0.08512, 0.52416, 0, 0.02023, 0, 0, 0, 1, 0],
+  brownie: [0.5997, 0.34553, -0.27082, 0, 0.186, -0.0377, 0.86095, 0.15059, 0, -0.1449, 0.24113, -0.07441, 0.44972, 0, -0.02965, 0, 0, 0, 1, 0],
+};
+const fxGrayOrSat = (s) => (s >= 1 ? [{ t: 'gray' }] : [{ t: 'sat', v: -s }]);
+/** Named preset → op list (mirrors buildFilterStack). */
+function presetOps(id, strength = 1) {
+  const s = clamp(Number(strength), 0, 1);
+  if (!(s > 0)) return [];
+  const sat = (v) => ({ t: 'sat', v }); const bri = (v) => ({ t: 'bri', v }); const con = (v) => ({ t: 'con', v }); const mat = (m) => ({ t: 'mat', m });
+  switch (id) {
+    case 'bw': return fxGrayOrSat(s);
+    case 'noir': return [...fxGrayOrSat(s), con(0.35 * s), bri(-0.06 * s)];
+    case 'silver': return [...fxGrayOrSat(s), bri(0.12 * s), con(-0.08 * s)];
+    case 'sepia': return s >= 1 ? [mat(FX_MATRICES.sepia)] : [sat(-0.6 * s), mat(fxWarm(s))];
+    case 'vivid': return [sat(0.6 * s), con(0.2 * s)];
+    case 'muted': return [sat(-0.4 * s)];
+    case 'warm': return [mat(fxWarm(s))];
+    case 'cool': return [mat(fxCool(s))];
+    case 'faded': return [bri(0.15 * s), sat(-0.3 * s), con(-0.1 * s)];
+    case 'dramatic': return [con(0.4 * s), bri(-0.05 * s)];
+    case 'lomo': return [sat(0.4 * s), con(0.3 * s), bri(-0.05 * s)];
+    case 'chrome': return [con(0.3 * s), bri(0.1 * s), sat(-0.2 * s)];
+    case 'fade': return [bri(0.25 * s), sat(-0.5 * s), con(-0.2 * s)];
+    case 'auto_enhance': return [bri(0.06 * s), con(0.12 * s), sat(0.15 * s)];
+    case 'portrait_glow': return [bri(0.1 * s), con(-0.05 * s), sat(0.05 * s)];
+    case 'warm_skin': return [mat(fxWarm(s)), sat(0.08 * s), bri(0.03 * s)];
+    case 'matte_film': return [con(-0.15 * s), bri(0.06 * s), sat(-0.18 * s)];
+    case 'cinematic': return [con(0.18 * s), mat([fxMix(1, 1.06, s), 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, fxMix(1, 1.08, s), 0, fxMix(0, -0.02, s), 0, 0, 0, 1, 0]), sat(0.12 * s)];
+    case 'kodachrome': case 'technicolor': case 'polaroid': case 'vintage': case 'brownie': return [mat(FX_MATRICES[id])];
+    default: return [];
+  }
+}
+/** Adjust sliders → op list (mirrors buildAdjustmentFilters, same order). */
+function adjustOps(e) {
+  const out = [];
+  const n = (v) => Number(v) || 0;
+  const exposure = n(e.exposure);
+  if (exposure) { const g = 1 + clamp(exposure, -0.9, 1); out.push({ t: 'mat', m: [g, 0, 0, 0, 0, 0, g, 0, 0, 0, 0, 0, g, 0, 0, 0, 0, 0, 1, 0] }); }
+  if (n(e.brightness)) out.push({ t: 'bri', v: clamp(n(e.brightness), -1, 1) });
+  if (n(e.contrast)) out.push({ t: 'con', v: clamp(n(e.contrast), -1, 1) });
+  const hl = n(e.highlights);
+  if (hl) { const k = 0.35 * clamp(hl, -1, 1); out.push({ t: 'mat', m: [1 + k, 0, 0, 0, -k * 0.25, 0, 1 + k, 0, 0, -k * 0.25, 0, 0, 1 + k, 0, -k * 0.25, 0, 0, 0, 1, 0] }); }
+  const sh = n(e.shadows);
+  if (sh) out.push({ t: 'gamma', v: 1 + 0.6 * clamp(sh, -1, 1) });
+  if (n(e.saturation)) out.push({ t: 'sat', v: clamp(n(e.saturation), -1, 1) });
+  const temp = n(e.temperature);
+  if (temp) out.push({ t: 'mat', m: temp > 0 ? fxWarm(temp) : fxCool(-temp) });
+  const tint = n(e.tint);
+  if (tint) { const t = 0.25 * clamp(tint, -1, 1); out.push({ t: 'mat', m: [1 + t * 0.6, 0, 0, 0, 0, 0, 1 - t, 0, 0, 0, 0, 0, 1 + t * 0.6, 0, 0, 0, 0, 0, 1, 0] }); }
+  // The app hands Fabric's HueRotation radians, which Fabric multiplies by π again — mirrored as-is.
+  const hue = n(e.hue);
+  if (hue) out.push({ t: 'hue', v: (clamp(hue, -180, 180) * Math.PI) / 180 });
+  const sharpen = clamp((e.sharpness ?? 1) - 1, 0, 1);
+  if (sharpen > 0.01) out.push({ t: 'sharpen', v: sharpen });
+  if (n(e.blur)) out.push({ t: 'blur', v: clamp(n(e.blur) / 25, 0, 1) });
+  if (n(e.noise)) out.push({ t: 'noise', v: Math.round(clamp(n(e.noise), 0, 1) * 180) });
+  if (e.tintColor && n(e.tintOpacity)) out.push({ t: 'blend', mode: 'tint', color: e.tintColor, alpha: clamp(n(e.tintOpacity), 0, 1) });
+  if (e.duotoneHighlight && e.duotoneShadow) {
+    out.push({ t: 'gray' });
+    out.push({ t: 'blend', mode: 'lighten', color: e.duotoneHighlight, alpha: 0.5 });
+    out.push({ t: 'blend', mode: 'darken', color: e.duotoneShadow, alpha: 0.5 });
+  }
+  return out;
+}
+/** The whole per-pixel effects pipeline of an image (what a filterMask masks). */
+function effectOps(e) {
+  if (!e) return [];
+  return [...(e.filter && e.filter !== 'none' ? presetOps(e.filter, e.filterStrength ?? 1) : []), ...adjustOps(e)];
+}
+function hexRgb(c) {
+  const m = String(c || '').trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!m) return [0, 0, 0];
+  const h = m[1].length === 3 ? m[1].split('').map((x) => x + x).join('') : m[1];
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+/** Deterministic grain (stable previews), same amplitude as Fabric's Noise. */
+function fxRng(seed) { let x = seed >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
+/** Fabric's 2D Blur: two triangular 29-tap passes over blur·0.12 of the short side. */
+function fxBlur(d, w, h, blur) {
+  const aspect = w / h; const samples = 15; const row = 4 * w;
+  const pass = (src, dst, horizontal) => {
+    const scale = horizontal ? (aspect > 1 ? 1 / aspect : 1) : (aspect < 1 ? aspect : 1);
+    const bv = scale * blur * 0.12 * (horizontal ? w : h);
+    for (let i = 0; i < src.length; i += 4) {
+      let r = 0; let g = 0; let b = 0; let a = 0; let tot = 0;
+      const lo = horizontal ? i - (i % row) : i % row;
+      const hi = horizontal ? lo + row : src.length - row + lo;
+      for (let j = -samples + 1; j < samples; j += 1) {
+        const pct = j / samples; const wt = 1 - Math.abs(pct);
+        let sp = i + Math.floor(bv * pct) * (horizontal ? 4 : row);
+        if (sp < lo) sp = lo; else if (sp > hi) sp = hi;
+        const la = src[sp + 3] * wt;
+        r += src[sp] * la; g += src[sp + 1] * la; b += src[sp + 2] * la; a += la; tot += wt;
+      }
+      dst[i] = r / a; dst[i + 1] = g / a; dst[i + 2] = b / a; dst[i + 3] = a / tot;
+    }
+  };
+  const tmp = new Uint8ClampedArray(d);
+  pass(d, tmp, true);
+  pass(tmp, d, false);
+}
+/** Run an op list over straight-alpha RGBA pixels (Uint8ClampedArray, in place). */
+function applyOps(d, w, h, ops) {
+  for (const op of ops) {
+    switch (op.t) {
+      case 'gray': for (let i = 0; i < d.length; i += 4) { const v = (d[i] + d[i + 1] + d[i + 2]) / 3; d[i] = d[i + 1] = d[i + 2] = v; } break;
+      case 'bri': { const b = Math.round(op.v * 255); for (let i = 0; i < d.length; i += 4) { d[i] += b; d[i + 1] += b; d[i + 2] += b; } break; }
+      case 'con': {
+        const c = Math.floor(op.v * 255); const f = (259 * (c + 255)) / (255 * (259 - c));
+        for (let i = 0; i < d.length; i += 4) { d[i] = f * (d[i] - 128) + 128; d[i + 1] = f * (d[i + 1] - 128) + 128; d[i + 2] = f * (d[i + 2] - 128) + 128; }
+        break;
+      }
+      case 'sat': {
+        const adj = -op.v;
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i]; const g = d[i + 1]; const b = d[i + 2]; const mx = Math.max(r, g, b);
+          d[i] += mx !== r ? (mx - r) * adj : 0; d[i + 1] += mx !== g ? (mx - g) * adj : 0; d[i + 2] += mx !== b ? (mx - b) * adj : 0;
+        }
+        break;
+      }
+      case 'gamma': {
+        const inv = 1 / op.v; const lut = new Uint8Array(256);
+        for (let k = 0; k < 256; k += 1) lut[k] = Math.pow(k / 255, inv) * 255;
+        for (let i = 0; i < d.length; i += 4) { d[i] = lut[d[i]]; d[i + 1] = lut[d[i + 1]]; d[i + 2] = lut[d[i + 2]]; }
+        break;
+      }
+      case 'hue': case 'mat': {
+        let m = op.m;
+        if (op.t === 'hue') {
+          const rad = op.v * Math.PI; const co = Math.cos(rad); const si = Math.sin(rad); const t3 = 1 / 3; const ss = Math.sqrt(t3) * si; const omc = 1 - co;
+          m = [co + omc / 3, t3 * omc - ss, t3 * omc + ss, 0, 0, t3 * omc + ss, co + t3 * omc, t3 * omc - ss, 0, 0, t3 * omc - ss, t3 * omc + ss, co + t3 * omc, 0, 0, 0, 0, 0, 1, 0];
+        }
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i]; const g = d[i + 1]; const b = d[i + 2];
+          d[i] = r * m[0] + g * m[1] + b * m[2] + m[4] * 255;
+          d[i + 1] = r * m[5] + g * m[6] + b * m[7] + m[9] * 255;
+          d[i + 2] = r * m[10] + g * m[11] + b * m[12] + m[14] * 255;
+        }
+        break;
+      }
+      case 'sharpen': {
+        const a = op.v; const src = new Uint8ClampedArray(d); const k = [0, -a, 0, -a, 1 + 4 * a, -a, 0, -a, 0];
+        for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
+          let r = 0; let g = 0; let b = 0; let al = 0;
+          for (let cy = 0; cy < 3; cy += 1) for (let cx = 0; cx < 3; cx += 1) {
+            const sy = y + cy - 1; const sx = x + cx - 1;
+            if (sy < 0 || sy >= h || sx < 0 || sx >= w) continue;
+            const o = (sy * w + sx) * 4; const wt = k[cy * 3 + cx];
+            r += src[o] * wt; g += src[o + 1] * wt; b += src[o + 2] * wt; al += src[o + 3] * wt;
+          }
+          const o = (y * w + x) * 4; d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = al;
+        }
+        break;
+      }
+      case 'blur': fxBlur(d, w, h, op.v); break;
+      case 'noise': { const rnd = fxRng(w * 73856093 ^ h * 19349663); for (let i = 0; i < d.length; i += 4) { const r = (0.5 - rnd()) * op.v; d[i] += r; d[i + 1] += r; d[i + 2] += r; } break; }
+      case 'blend': {
+        const [cr, cg, cb] = hexRgb(op.color); const al = op.alpha; const tr = cr * al; const tg = cg * al; const tb = cb * al; const a1 = 1 - al;
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i]; const g = d[i + 1]; const b = d[i + 2];
+          if (op.mode === 'tint') { d[i] = tr + r * a1; d[i + 1] = tg + g * a1; d[i + 2] = tb + b * a1; }
+          else if (op.mode === 'lighten') { d[i] = Math.max(r, tr); d[i + 1] = Math.max(g, tg); d[i + 2] = Math.max(b, tb); }
+          else if (op.mode === 'darken') { d[i] = Math.min(r, tr); d[i + 1] = Math.min(g, tg); d[i + 2] = Math.min(b, tb); }
+        }
+        break;
+      }
+      default: break;
+    }
+  }
+}
+
+/** A mask PNG's alpha resized (fill) to w×h, or null when absent/unreadable (logged). */
+async function maskAlphaAt(proj, rel, w, h, what) {
+  try {
+    const file = safeImagePath(proj, rel);
+    return await sharp(file).toColourspace('srgb').ensureAlpha().resize(w, h, { fit: 'fill' }).extractChannel(3).raw().toBuffer();
+  } catch (e) { log(`${what} ignored:`, e.message); return null; }
+}
+
+/**
+ * The photo as the app shows it BEFORE crop/fit/flip/rotate, at a working size:
+ * the WHOLE EXIF-rotated source → effects pipeline → Filter-brush blend
+ * (original·(1−m) + filtered·m through `filterMask`) → erase mask (alpha).
+ * Null when there is nothing to do (no effects, no erase mask) — the caller then
+ * uses the file directly. `alpha` is true when an erase mask applied.
+ */
+async function loadPhotoSource(proj, pi, work) {
+  const ops = effectOps(pi.effects);
+  if (!ops.length && !pi.eraseMask) return null;
   try {
     const src = safeImagePath(proj, pi.filename);
-    const mfile = safeImagePath(proj, pi.eraseMask);
-    const base = await sharp(src).rotate().resize(work, work, { fit: 'inside', withoutEnlargement: true }).ensureAlpha().png().toBuffer({ resolveWithObject: true });
-    const mk = await sharp(mfile).toColourspace('srgb').ensureAlpha().resize(base.info.width, base.info.height, { fit: 'fill' }).png().toBuffer();
-    const input = await sharp(base.data).composite([{ input: mk, blend: 'dest-in' }]).png().toBuffer();
-    return { input, w: base.info.width, h: base.info.height };
-  } catch (e) { log('eraseMask ignored:', e.message); return null; }
+    const { data, info } = await sharp(src).rotate().resize(work, work, { fit: 'inside', withoutEnlargement: true }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const w = info.width; const h = info.height;
+    const px = new Uint8ClampedArray(data.buffer, data.byteOffset, data.length);
+    if (ops.length) {
+      const orig = pi.filterMask ? new Uint8ClampedArray(px) : null;
+      applyOps(px, w, h, ops);
+      const fm = orig ? await maskAlphaAt(proj, pi.filterMask, w, h, 'filterMask') : null;
+      if (orig && fm) {
+        for (let i = 0, j = 0; j < fm.length; i += 4, j += 1) {
+          const m = fm[j] / 255;
+          if (m >= 1) continue;
+          px[i] = orig[i] + (px[i] - orig[i]) * m; px[i + 1] = orig[i + 1] + (px[i + 1] - orig[i + 1]) * m;
+          px[i + 2] = orig[i + 2] + (px[i + 2] - orig[i + 2]) * m; px[i + 3] = orig[i + 3] + (px[i + 3] - orig[i + 3]) * m;
+        }
+      }
+    }
+    let alpha = false;
+    if (pi.eraseMask) {
+      const em = await maskAlphaAt(proj, pi.eraseMask, w, h, 'eraseMask');
+      if (em) { alpha = true; for (let i = 3, j = 0; j < em.length; i += 4, j += 1) px[i] = (px[i] * em[j]) / 255; }
+    }
+    if (!ops.length && !alpha) return null;
+    const input = await sharp(Buffer.from(px.buffer, px.byteOffset, px.length), { raw: { width: w, height: h, channels: 4 } }).png().toBuffer();
+    return { input, w, h, alpha };
+  } catch (e) { log('photo effects/masks ignored:', e.message); return null; }
 }
 
 async function renderImageCell(proj, pi, fw, fh, bg) {
   const src = safeImagePath(proj, pi.filename);
   const rec = imgRecord(proj, pi.filename);
   let iw = rec?.width || fw; let ih = rec?.height || fh;
-  // Non-destructive erase: mask the WHOLE source first, then crop/fit as usual.
-  // A missing/unreadable mask → un-masked render.
+  // Effects (+ Filter-brush blend) and the non-destructive erase mask apply to
+  // the WHOLE source first, then crop/fit as usual. A missing/unreadable mask →
+  // rendered without it.
   let input = src; let masked = false;
-  const ms = await loadMaskedSource(proj, pi, clamp(Math.max(fw, fh) * 2, 64, 2048));
-  if (ms) { input = ms.input; iw = ms.w; ih = ms.h; masked = true; }
+  const ms = await loadPhotoSource(proj, pi, clamp(Math.max(fw, fh) * 2, 64, 2048));
+  if (ms) { input = ms.input; iw = ms.w; ih = ms.h; masked = ms.alpha; }
   const finish = (pipe) => (masked ? pipe.png().toBuffer() : pipe.jpeg({ quality: 55 }).toBuffer());
   const clear = { r: 0, g: 0, b: 0, alpha: 0 };
   const auto = !!pi.slotRect && !pi.manual;
@@ -458,7 +680,7 @@ async function renderTransformedPhoto(proj, pi, scale) {
     if (pi.slotRect) { const f = pi.slotRect; clip = { x: f.x * scale, y: f.y * scale, w: f.width * scale, h: f.height * scale }; }
   }
   const pw = Math.max(1, Math.round(dw * scale)); const ph = Math.max(1, Math.round(dh * scale));
-  const ms = await loadMaskedSource(proj, pi, clamp(Math.max(pw, ph) * 2, 64, 2048));
+  const ms = await loadPhotoSource(proj, pi, clamp(Math.max(pw, ph) * 2, 64, 2048));
   let buf = await sharp(ms ? ms.input : src).rotate().resize(pw, ph, { fit: 'fill' }).ensureAlpha().png().toBuffer();
   if (pos.flipX) buf = await sharp(buf).flop().png().toBuffer();
   if (pos.flipY) buf = await sharp(buf).flip().png().toBuffer();
@@ -634,7 +856,7 @@ tool('get_page', 'Get full detail for one page: every image (id, filename, frame
     const p = getPage(proj, page);
     return [txt({
       index: typeof page === 'number' ? page : proj.pages.indexOf(p), id: p.id, type: p.type, layoutId: p.layoutId, backgroundColor: p.backgroundColor || null, locked: !!p.locked,
-      images: (p.images || []).map((im) => ({ id: im.id, filename: im.filename, slotId: im.slotId, visible: im.visible !== false, free: !!im.free, fit: im.fit || 'auto', zIndex: im.zIndex, opacity: im.opacity, rotation: im.position?.rotation, frame: im.slotRect || im.position, effects: im.effects, border: im.border, shadow: im.shadow, caption: im.caption, eraseMask: im.eraseMask || null })),
+      images: (p.images || []).map((im) => ({ id: im.id, filename: im.filename, slotId: im.slotId, visible: im.visible !== false, free: !!im.free, fit: im.fit || 'auto', zIndex: im.zIndex, opacity: im.opacity, rotation: im.position?.rotation, frame: im.slotRect || im.position, effects: im.effects, border: im.border, shadow: im.shadow, caption: im.caption, eraseMask: im.eraseMask || null, filterMask: im.filterMask || null })),
       textBlocks: (p.textBlocks || []).map((t) => ({ id: t.id, type: t.type, content: t.content, position: t.position, style: t.style })),
       decorations: (p.decorations || []).map((d) => ({ id: d.id, type: d.type, renderer: d.renderer, params: d.params, position: d.position })),
       proverb: p.proverb || null,
@@ -1154,7 +1376,7 @@ async function orientedSize(file) {
  * check, or the file does not exist). THROWS when the file exists but cannot be
  * decoded — silently restarting would discard the user's earlier erasing.
  */
-async function readMaskAlpha(proj, rel) {
+async function readMaskAlpha(proj, rel, clearTool = 'clear_image_erase') {
   let file;
   try { file = safeImagePath(proj, rel); } catch { return null; }
   if (!fss.existsSync(file)) return null;
@@ -1168,73 +1390,99 @@ async function readMaskAlpha(proj, rel) {
     else throw new Error('unexpected pixel layout');
     return { data: out, width: info.width, height: info.height };
   } catch (e) {
-    throw new Error(`The existing erase mask "${rel}" exists but could not be read (${e.message}). Continuing would discard the earlier erasing — call clear_image_erase on this image first, then erase again.`);
+    const what = clearTool === 'clear_image_erase' ? 'erase mask' : 'filter mask';
+    throw new Error(`The existing ${what} "${rel}" exists but could not be read (${e.message}). Continuing would discard the earlier brushing — call ${clearTool} on this image first, then brush again.`);
   }
 }
 
+/**
+ * One brush stroke on a mask PNG — shared by the eraser (`eraseMask`, alpha =
+ * keep) and the Filter brush (`filterMask`, alpha = filter amount). `lower`
+ * true lowers the alpha (erase / remove filter), false raises it (restore).
+ * Starts from the image's existing mask (else fully opaque at the photo's
+ * aspect ratio), applies the feathered ellipse/rect given in 0..1 fractions of
+ * the UN-FLIPPED source, and writes a NEW PNG into <sourceFolder>/.pebble_masks/
+ * (`<imageId>_<ts>.png`, or `<imageId>_fx_<ts>.png` for a filter mask).
+ * Returns the new relative path, its size and the mean alpha (0..1).
+ */
+async function strokeImageMask(proj, im, a, { key, lower, clearTool }) {
+  const shape = a.shape === undefined ? 'ellipse' : a.shape;
+  if (shape !== 'ellipse' && shape !== 'rect') throw new Error('shape must be "ellipse" or "rect".');
+  const nums = { x: a.x, y: a.y, width: a.width, height: a.height };
+  for (const [k, v] of Object.entries(nums)) if (!Number.isFinite(Number(v)) || v === null || v === '') throw new Error(`${k} must be a number (0..1 fraction of the photo).`);
+  const bx = Number(a.x); const by = Number(a.y); const bw = Number(a.width); const bh = Number(a.height);
+  if (bw <= 0 || bh <= 0) throw new Error('width and height must be > 0.');
+  const opacity = clamp(a.opacity === undefined ? 1 : Number(a.opacity), 0, 1);
+  const feather = clamp(a.feather === undefined ? 0.3 : Number(a.feather), 0, 1);
+
+  // 1. Start from the existing mask, else a fully opaque one at the photo's aspect ratio.
+  let mask = im[key] ? await readMaskAlpha(proj, im[key], clearTool) : null;
+  if (!mask) {
+    const sz = await orientedSize(safeImagePath(proj, im.filename));
+    const k = MASK_LONG_SIDE / Math.max(sz.width, sz.height);
+    const width = Math.max(1, Math.round(sz.width * k)); const height = Math.max(1, Math.round(sz.height * k));
+    mask = { data: Buffer.alloc(width * height, 255), width, height };
+  }
+  const { data, width: W, height: H } = mask;
+
+  // 2. Apply the feathered shape (pure JS on the single-channel buffer).
+  const cx = (bx + bw / 2) * W; const cy = (by + bh / 2) * H;
+  const rx = Math.max(1e-6, (bw * W) / 2); const ry = Math.max(1e-6, (bh * H) / 2);
+  const x0 = Math.max(0, Math.floor(cx - rx - 1)); const x1 = Math.min(W - 1, Math.ceil(cx + rx + 1));
+  const y0 = Math.max(0, Math.floor(cy - ry - 1)); const y1 = Math.min(H - 1, Math.ceil(cy + ry + 1));
+  for (let py = y0; py <= y1; py += 1) {
+    const dy = (py + 0.5 - cy) / ry;
+    for (let px = x0; px <= x1; px += 1) {
+      const dx = (px + 0.5 - cx) / rx;
+      const d = shape === 'ellipse' ? Math.sqrt(dx * dx + dy * dy) : Math.max(Math.abs(dx), Math.abs(dy));
+      let cov;
+      if (d >= 1) cov = 0;
+      else if (feather <= 0) cov = 1;
+      else cov = clamp((1 - d) / feather, 0, 1);
+      if (cov <= 0) continue;
+      const i = py * W + px; const al = data[i];
+      data[i] = Math.round(lower ? al * (1 - opacity * cov) : al + (255 - al) * opacity * cov);
+    }
+  }
+
+  // 3. Write a NEW uniquely named PNG (white RGB + alpha) inside <sourceFolder>/.pebble_masks/.
+  const base = path.resolve(proj.meta.sourceFolder);
+  const dir = path.join(base, MASK_DIR);
+  await fs.mkdir(dir, { recursive: true });
+  if (!isInside(fss.realpathSync(base), fss.realpathSync(dir))) throw new Error(`Refused: ${MASK_DIR} resolves outside the album folder.`);
+  const stem = `${safeAssetId(im.id) || 'image'}${key === 'filterMask' ? '_fx' : ''}`;
+  let name = `${stem}_${Date.now()}.png`; let n = 1;
+  // eslint-disable-next-line no-await-in-loop
+  while (await fs.access(path.join(dir, name)).then(() => true, () => false)) { name = `${stem}_${Date.now()}_${n}.png`; n += 1; }
+  const rel = `${MASK_DIR}/${name}`;
+  const out = safeImagePath(proj, rel); // validates containment
+  const rgba = Buffer.alloc(W * H * 4, 255);
+  let sum = 0;
+  for (let i = 0; i < W * H; i += 1) { rgba[i * 4 + 3] = data[i]; sum += data[i]; }
+  await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toFile(out);
+  im[key] = rel;
+  return { rel, W, H, mean: sum / (255 * W * H), shape, opacity, feather };
+}
+
+const MASK_REGION_PROPS = {
+  shape: { type: 'string', enum: ['ellipse', 'rect'], description: 'default ellipse' },
+  x: { ...S.num, description: '0..1 left of the box (fraction of photo width)' },
+  y: { ...S.num, description: '0..1 top of the box (fraction of photo height)' },
+  width: { ...S.num, description: '0..1 box width (fraction of photo width)' },
+  height: { ...S.num, description: '0..1 box height (fraction of photo height)' },
+  opacity: { ...S.num, description: '0..1, default 1' },
+  feather: { ...S.num, description: '0..1 edge softness, default 0.3 (0 = hard)' },
+};
+
 tool('erase_image_region', 'NON-DESTRUCTIVE eraser — the agent\'s equivalent of one brush stroke in the app\'s Erase/Restore brush. Erases (makes transparent) or restores part of a photo so the page/photos below show through; the source file is never modified. Region = a shape in a box given as 0..1 FRACTIONS OF THE SOURCE PHOTO (x,y = top-left of the box, width/height = its size). opacity 0..1 (1 = fully, 0.4 = removes 40% per call, like a 40% brush; repeat calls accumulate); feather 0..1 (0 = hard edge, 1 = fully soft — the inverse of brush hardness). mode "restore" brings erased pixels back. Each call writes a NEW mask PNG to <sourceFolder>/.pebble_masks/ and points the image at it (older files stay on disk). Works on any placed photo, typically a free overlay from place_image {free:true}. See the result with render_page. clear_image_erase removes the erasing entirely.',
-  schema({ ...projProp, ...pageProp, imageId: S.str, mode: { type: 'string', enum: ['erase', 'restore'], description: 'default erase' }, shape: { type: 'string', enum: ['ellipse', 'rect'], description: 'default ellipse' }, x: { ...S.num, description: '0..1 left of the box (fraction of photo width)' }, y: { ...S.num, description: '0..1 top of the box (fraction of photo height)' }, width: { ...S.num, description: '0..1 box width (fraction of photo width)' }, height: { ...S.num, description: '0..1 box height (fraction of photo height)' }, opacity: { ...S.num, description: '0..1, default 1' }, feather: { ...S.num, description: '0..1 edge softness, default 0.3 (0 = hard)' } }, ['project', 'page', 'imageId', 'x', 'y', 'width', 'height']),
+  schema({ ...projProp, ...pageProp, imageId: S.str, mode: { type: 'string', enum: ['erase', 'restore'], description: 'default erase' }, ...MASK_REGION_PROPS }, ['project', 'page', 'imageId', 'x', 'y', 'width', 'height']),
   async (a) => edit(a.project, async (proj) => {
     const p = getPage(proj, a.page); const im = getImage(p, a.imageId);
     const mode = a.mode === undefined ? 'erase' : a.mode;
     if (mode !== 'erase' && mode !== 'restore') throw new Error('mode must be "erase" or "restore".');
-    const shape = a.shape === undefined ? 'ellipse' : a.shape;
-    if (shape !== 'ellipse' && shape !== 'rect') throw new Error('shape must be "ellipse" or "rect".');
-    const nums = { x: a.x, y: a.y, width: a.width, height: a.height };
-    for (const [k, v] of Object.entries(nums)) if (!Number.isFinite(Number(v)) || v === null || v === '') throw new Error(`${k} must be a number (0..1 fraction of the photo).`);
-    const bx = Number(a.x); const by = Number(a.y); const bw = Number(a.width); const bh = Number(a.height);
-    if (bw <= 0 || bh <= 0) throw new Error('width and height must be > 0.');
-    const opacity = clamp(a.opacity === undefined ? 1 : Number(a.opacity), 0, 1);
-    const feather = clamp(a.feather === undefined ? 0.3 : Number(a.feather), 0, 1);
-
-    // 1. Start from the existing mask, else a fully opaque one at the photo's aspect ratio.
-    let mask = im.eraseMask ? await readMaskAlpha(proj, im.eraseMask) : null;
-    if (!mask) {
-      const sz = await orientedSize(safeImagePath(proj, im.filename));
-      const k = MASK_LONG_SIDE / Math.max(sz.width, sz.height);
-      const width = Math.max(1, Math.round(sz.width * k)); const height = Math.max(1, Math.round(sz.height * k));
-      mask = { data: Buffer.alloc(width * height, 255), width, height };
-    }
-    const { data, width: W, height: H } = mask;
-
-    // 2. Apply the feathered shape (pure JS on the single-channel buffer).
-    const cx = (bx + bw / 2) * W; const cy = (by + bh / 2) * H;
-    const rx = Math.max(1e-6, (bw * W) / 2); const ry = Math.max(1e-6, (bh * H) / 2);
-    const x0 = Math.max(0, Math.floor(cx - rx - 1)); const x1 = Math.min(W - 1, Math.ceil(cx + rx + 1));
-    const y0 = Math.max(0, Math.floor(cy - ry - 1)); const y1 = Math.min(H - 1, Math.ceil(cy + ry + 1));
-    for (let py = y0; py <= y1; py += 1) {
-      const dy = (py + 0.5 - cy) / ry;
-      for (let px = x0; px <= x1; px += 1) {
-        const dx = (px + 0.5 - cx) / rx;
-        const d = shape === 'ellipse' ? Math.sqrt(dx * dx + dy * dy) : Math.max(Math.abs(dx), Math.abs(dy));
-        let cov;
-        if (d >= 1) cov = 0;
-        else if (feather <= 0) cov = 1;
-        else cov = clamp((1 - d) / feather, 0, 1);
-        if (cov <= 0) continue;
-        const i = py * W + px; const al = data[i];
-        data[i] = Math.round(mode === 'erase' ? al * (1 - opacity * cov) : al + (255 - al) * opacity * cov);
-      }
-    }
-
-    // 3. Write a NEW uniquely named PNG (white RGB + alpha) inside <sourceFolder>/.pebble_masks/.
-    const base = path.resolve(proj.meta.sourceFolder);
-    const dir = path.join(base, MASK_DIR);
-    await fs.mkdir(dir, { recursive: true });
-    if (!isInside(fss.realpathSync(base), fss.realpathSync(dir))) throw new Error(`Refused: ${MASK_DIR} resolves outside the album folder.`);
-    const stem = safeAssetId(im.id) || 'image';
-    let name = `${stem}_${Date.now()}.png`; let n = 1;
-    // eslint-disable-next-line no-await-in-loop
-    while (await fs.access(path.join(dir, name)).then(() => true, () => false)) { name = `${stem}_${Date.now()}_${n}.png`; n += 1; }
-    const rel = `${MASK_DIR}/${name}`;
-    const out = safeImagePath(proj, rel); // validates containment
-    const rgba = Buffer.alloc(W * H * 4, 255);
-    let sum = 0;
-    for (let i = 0; i < W * H; i += 1) { rgba[i * 4 + 3] = data[i]; sum += data[i]; }
-    await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toFile(out);
-    im.eraseMask = rel;
-    const erasedPct = Math.round((1 - sum / (255 * W * H)) * 100);
-    return [txt(`${mode === 'erase' ? 'Erased' : 'Restored'} a ${shape} region (opacity ${opacity}, feather ${feather}) on image ${im.id}. ${erasedPct}% of the photo is now erased. Mask: ${rel} (${W}×${H}). Use render_page to see it.`)];
+    const r = await strokeImageMask(proj, im, a, { key: 'eraseMask', lower: mode === 'erase', clearTool: 'clear_image_erase' });
+    const erasedPct = Math.round((1 - r.mean) * 100);
+    return [txt(`${mode === 'erase' ? 'Erased' : 'Restored'} a ${r.shape} region (opacity ${r.opacity}, feather ${r.feather}) on image ${im.id}. ${erasedPct}% of the photo is now erased. Mask: ${r.rel} (${r.W}×${r.H}). Use render_page to see it.`)];
   }));
 
 tool('clear_image_erase', 'Remove all erasing from a photo (sets its eraseMask to none, so the full photo shows again). The old mask PNG is left on disk — nothing is deleted.',
@@ -1244,6 +1492,27 @@ tool('clear_image_erase', 'Remove all erasing from a photo (sets its eraseMask t
     const had = !!im.eraseMask;
     delete im.eraseMask;
     return [txt(had ? `Cleared erasing on image ${imageId}; the full photo shows again.` : `Image ${imageId} had no erasing.`)];
+  }));
+
+tool('mask_image_filter_region', 'FILTER BRUSH — the agent\'s equivalent of one stroke of the app\'s Filter brush (PicsArt-style partial filter). Removes the photo\'s filter/adjustments from part of the photo (mode "remove": that area shows the ORIGINAL photo) or paints them back in (mode "restore"). Covers the whole per-pixel effects pipeline (named filter at its strength + every adjust slider incl. blur/sharpen/grain); vignette, border and shadow are separate overlays and are NOT masked. Region = a shape in a box given as 0..1 FRACTIONS OF THE UN-FLIPPED SOURCE PHOTO (x,y = top-left, width/height = size — same space as erase_image_region). opacity 0..1 (0.4 = a 40% brush; repeat calls accumulate); feather 0..1 (0 = hard edge). Each call writes a NEW mask PNG (<imageId>_fx_<ts>.png) to <sourceFolder>/.pebble_masks/ and points the image\'s filterMask at it (mask alpha = how much of the effects apply). Needs effects on the photo to be visible (set them with update_image). The erase mask still applies on top. See the result with render_page; clear_image_filter_mask applies the filter everywhere again.',
+  schema({ ...projProp, ...pageProp, imageId: S.str, mode: { type: 'string', enum: ['remove', 'restore'], description: 'default remove' }, ...MASK_REGION_PROPS }, ['project', 'page', 'imageId', 'x', 'y', 'width', 'height']),
+  async (a) => edit(a.project, async (proj) => {
+    const p = getPage(proj, a.page); const im = getImage(p, a.imageId);
+    const mode = a.mode === undefined ? 'remove' : a.mode;
+    if (mode !== 'remove' && mode !== 'restore') throw new Error('mode must be "remove" or "restore".');
+    const r = await strokeImageMask(proj, im, a, { key: 'filterMask', lower: mode === 'remove', clearTool: 'clear_image_filter_mask' });
+    const unfilteredPct = Math.round((1 - r.mean) * 100);
+    const noFx = effectOps(im.effects).length === 0;
+    return [txt(`${mode === 'remove' ? 'Removed the filter from' : 'Restored the filter on'} a ${r.shape} region (opacity ${r.opacity}, feather ${r.feather}) of image ${im.id}. ${unfilteredPct}% of the photo now shows the original (unfiltered). Mask: ${r.rel} (${r.W}×${r.H}).${noFx ? ' Note: this photo has no filter/adjustment yet, so nothing changes visually until you add one with update_image.' : ''} Use render_page to see it.`)];
+  }));
+
+tool('clear_image_filter_mask', 'Remove the Filter brush mask from a photo (sets its filterMask to none, so its filter/adjustments apply to the WHOLE photo again). The old mask PNG is left on disk — nothing is deleted.',
+  schema({ ...projProp, ...pageProp, imageId: S.str }, ['project', 'page', 'imageId']),
+  async ({ project, page, imageId }) => edit(project, (proj) => {
+    const p = getPage(proj, page); const im = getImage(p, imageId);
+    const had = !!im.filterMask;
+    delete im.filterMask;
+    return [txt(had ? `Cleared the filter brush on image ${imageId}; its filter applies everywhere again.` : `Image ${imageId} had no filter brush mask.`)];
   }));
 
 tool('remove_image', 'Remove an image from a page. A free image is deleted; a slotted image becomes "not placed" (stays available to re-place).',
@@ -1286,7 +1555,7 @@ tool('move_image_to_slot', 'Move an existing image to a specific layout slot (co
     return [txt(`Moved ${imageId} to slot ${slotId}${occupant ? ` (swapped with ${occupant.id})` : ''}.`)];
   }));
 
-tool('copy_image_style', 'Copy the visual style (border, shadow, effects/filter, fit, focus + cover zoom) from one image to other images — to give a page or album a consistent look fast. Targets default to all OTHER visible images on the target page.',
+tool('copy_image_style', 'Copy the visual style (border, shadow, effects/filter, fit, focus + cover zoom) from one image to other images — to give a page or album a consistent look fast. Targets default to all OTHER visible images on the target page. Photo-specific masks are NOT copied: each target keeps its own eraseMask / filterMask (a Filter-brush mask is painted for one photo).',
   schema({ ...projProp, fromPage: S.integer, fromImageId: S.str, toPage: S.integer, toImageIds: { type: 'array', items: S.str } }, ['project', 'fromPage', 'fromImageId']),
   async ({ project, fromPage, fromImageId, toPage, toImageIds }) => edit(project, (proj) => {
     const src = getImage(getPage(proj, fromPage), fromImageId);
