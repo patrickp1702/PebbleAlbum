@@ -462,11 +462,23 @@ function effectOps(e) {
   if (!e) return [];
   return [...(e.filter && e.filter !== 'none' ? presetOps(e.filter, e.filterStrength ?? 1) : []), ...adjustOps(e)];
 }
-function hexRgb(c) {
-  const m = String(c || '').trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
-  if (!m) return [0, 0, 0];
-  const h = m[1].length === 3 ? m[1].split('').map((x) => x + x).join('') : m[1];
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+/** CSS colour → [r,g,b]: #rgb, #rrggbb (#rgba/#rrggbbaa: alpha ignored), rgb()/rgba(). Null when unparseable. */
+function cssRgb(c) {
+  const str = String(c || '').trim();
+  const hx = str.match(/^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
+  if (hx) {
+    const h = hx[1].length <= 4 ? hx[1].slice(0, 3).split('').map((x) => x + x).join('') : hx[1].slice(0, 6);
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  const fn = str.match(/^rgba?\(\s*([^)]*)\)$/i);
+  if (fn) {
+    const parts = fn[1].split(/[\s,/]+/).filter(Boolean).slice(0, 3);
+    if (parts.length < 3) return null;
+    const v = parts.map((p) => (p.endsWith('%') ? (parseFloat(p) / 100) * 255 : parseFloat(p)));
+    if (v.some((x) => !Number.isFinite(x))) return null;
+    return v.map((x) => clamp(Math.round(x), 0, 255));
+  }
+  return null;
 }
 /** Deterministic grain (stable previews), same amplitude as Fabric's Noise. */
 function fxRng(seed) { let x = seed >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
@@ -550,7 +562,9 @@ function applyOps(d, w, h, ops) {
       case 'blur': fxBlur(d, w, h, op.v); break;
       case 'noise': { const rnd = fxRng(w * 73856093 ^ h * 19349663); for (let i = 0; i < d.length; i += 4) { const r = (0.5 - rnd()) * op.v; d[i] += r; d[i + 1] += r; d[i + 2] += r; } break; }
       case 'blend': {
-        const [cr, cg, cb] = hexRgb(op.color); const al = op.alpha; const tr = cr * al; const tg = cg * al; const tb = cb * al; const a1 = 1 - al;
+        const rgb = cssRgb(op.color);
+        if (!rgb) { log(`colour "${op.color}" not understood — ${op.mode} skipped in the preview`); break; }
+        const [cr, cg, cb] = rgb; const al = op.alpha; const tr = cr * al; const tg = cg * al; const tb = cb * al; const a1 = 1 - al;
         for (let i = 0; i < d.length; i += 4) {
           const r = d[i]; const g = d[i + 1]; const b = d[i + 2];
           if (op.mode === 'tint') { d[i] = tr + r * a1; d[i + 1] = tg + g * a1; d[i + 2] = tb + b * a1; }

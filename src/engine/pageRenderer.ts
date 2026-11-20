@@ -9,7 +9,7 @@ import { StaticCanvas, FabricImage, Textbox, Rect, Path, Polygon, Shadow, Gradie
 import type { AlbumPage, AlbumMeta, PageImage, TextBlock } from '@shared/pebble.types';
 import type { Theme } from '@shared/theme.types';
 import { drawPattern, getPattern, resolveColor, type RenderEnv } from './decoEngine';
-import { buildFilterStack, buildEffectsFilters } from './fabricFilters';
+import { buildEffectsFilters } from './fabricFilters';
 import { buildMaskPath, maskPathData } from './maskShapes';
 import { buildCurvedTextGroup } from './curvedText';
 import { getThemeFilterCSS } from './themeEngine';
@@ -137,13 +137,6 @@ export function applyFiltersSafe(img: FabricImage): void {
   }
 }
 
-/** Apply a colour-filter id to a Fabric image (mutates + reapplies filters). */
-export function applyFilter(img: FabricImage, filterId: string): void {
-  // @ts-expect-error fabric filter typing is loose across the union
-  img.filters = buildFilterStack(filterId);
-  applyFiltersSafe(img);
-}
-
 /**
  * (Re)apply the FULL effects pipeline — named preset + adjust sliders — to a
  * live Fabric image. Used by the initial build and by the editor's in-place
@@ -160,6 +153,15 @@ export function applyEffects(img: FabricImage, pi: PageImage): void {
 
 /** The decoded Filter-brush mask attached to a Fabric photo by buildImageObject. */
 type WithFilterMask = { pebbleFilterMask?: CanvasImageSource | null };
+
+/**
+ * ONE scratch canvas for applyFilterMask, reused across calls so a slider drag
+ * does not allocate a photo-sized canvas per tick. Resized as needed; dropped
+ * after a blend larger than SCRATCH_KEEP_PX (full-DPI export pages) so a huge
+ * backing store is never retained.
+ */
+const SCRATCH_KEEP_PX = 2600 * 2600;
+let blendScratch: HTMLCanvasElement | null = null;
 
 /**
  * Filter brush (`PageImage.filterMask`): after Fabric has filtered the photo,
@@ -179,9 +181,13 @@ export function applyFilterMask(img: FabricImage): void {
   const orig = (img as unknown as { _originalElement?: unknown })._originalElement;
   if (!orig || el === orig || !(el instanceof HTMLCanvasElement)) return; // unfiltered → original shows
   try {
-    blendThroughMask(el, orig as CanvasImageSource, mask);
+    if (!blendScratch) blendScratch = document.createElement('canvas');
+    blendThroughMask(el, orig as CanvasImageSource, mask, null, blendScratch);
     img.set('dirty', true);
   } catch { /* 2D canvas unavailable → leave the fully filtered photo */ }
+  if (blendScratch && blendScratch.width * blendScratch.height > SCRATCH_KEEP_PX) {
+    blendScratch.width = 0; blendScratch.height = 0; blendScratch = null;
+  }
 }
 
 /**
@@ -235,7 +241,8 @@ export function computeImagePlacement(pi: PageImage, imgW: number, imgH: number)
  * Cached by absolute path; safe because every mask save writes a NEW uniquely
  * named file (a changed mask is a changed path, so a hit is never stale).
  * The cache is a small LRU (each entry is a multi-MB base64 PNG and every Apply
- * creates a new path, so an unbounded map only ever grew).
+ * creates a new path, so an unbounded map only ever grew). Erase and filter
+ * masks have SEPARATE caches, so a page of photos with both never thrashes.
  * Resolves `null` for "no mask" — including a missing/unreadable file, which
  * must degrade to the plain photo, not a missing-photo placeholder. Failures
  * are not cached, so a mask written moments later is still picked up.
@@ -243,8 +250,9 @@ export function computeImagePlacement(pi: PageImage, imgW: number, imgH: number)
  * segment, NUL) is refused as "no mask": a hand-edited .pebble must not be able
  * to make the renderer read arbitrary files.
  */
-const ERASE_MASK_CACHE_MAX = 12;
+const MASK_CACHE_MAX = 12; // per cache
 const eraseMaskCache = new Map<string, Promise<string | null>>();
+const filterMaskCache = new Map<string, Promise<string | null>>();
 
 /** True for a project-relative path that stays inside the album folder. */
 function isSafeRelativePath(rel: string): boolean {
@@ -253,34 +261,38 @@ function isSafeRelativePath(rel: string): boolean {
   return !rel.split(/[\\/]+/).some((seg) => seg === '..');
 }
 
-/** Filter-brush mask loader (`PageImage.filterMask`): the same raw-PNG, LRU-cached,
- *  path-guarded loader as the erase mask (same storage rules). */
-export function loadFilterMask(sourceFolder: string | undefined, maskPath: string | undefined): Promise<string | null> {
-  return loadEraseMask(sourceFolder, maskPath);
-}
-
-export function loadEraseMask(sourceFolder: string | undefined, maskPath: string | undefined): Promise<string | null> {
+function loadMaskPng(cache: Map<string, Promise<string | null>>, sourceFolder: string | undefined, maskPath: string | undefined): Promise<string | null> {
   if (!maskPath || typeof window === 'undefined' || !window.pebble) return Promise.resolve(null);
   if (!isSafeRelativePath(maskPath)) return Promise.resolve(null);
   const abs = `${sourceFolder ?? ''}/${maskPath}`;
-  const hit = eraseMaskCache.get(abs);
+  const hit = cache.get(abs);
   if (hit) {
     // LRU touch: re-insert so it becomes the most recently used entry.
-    eraseMaskCache.delete(abs);
-    eraseMaskCache.set(abs, hit);
+    cache.delete(abs);
+    cache.set(abs, hit);
     return hit;
   }
   const p = window.pebble.readImageBase64(abs).catch(() => {
-    if (eraseMaskCache.get(abs) === p) eraseMaskCache.delete(abs);
+    if (cache.get(abs) === p) cache.delete(abs);
     return null;
   });
-  eraseMaskCache.set(abs, p);
-  while (eraseMaskCache.size > ERASE_MASK_CACHE_MAX) {
-    const oldest = eraseMaskCache.keys().next().value;
+  cache.set(abs, p);
+  while (cache.size > MASK_CACHE_MAX) {
+    const oldest = cache.keys().next().value;
     if (oldest === undefined) break;
-    eraseMaskCache.delete(oldest);
+    cache.delete(oldest);
   }
   return p;
+}
+
+export function loadEraseMask(sourceFolder: string | undefined, maskPath: string | undefined): Promise<string | null> {
+  return loadMaskPng(eraseMaskCache, sourceFolder, maskPath);
+}
+
+/** Filter-brush mask loader (`PageImage.filterMask`): the same raw-PNG, LRU-cached,
+ *  path-guarded loader as the erase mask (same storage rules), with its own cache. */
+export function loadFilterMask(sourceFolder: string | undefined, maskPath: string | undefined): Promise<string | null> {
+  return loadMaskPng(filterMaskCache, sourceFolder, maskPath);
 }
 
 /**

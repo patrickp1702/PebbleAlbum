@@ -566,6 +566,11 @@ brush it away from some areas (they show the original photo) and back in elsewhe
   (one stroke, 0..1 fractions of the un-flipped source, mirrors `erase_image_region`)
   and `clear_image_filter_mask`. `render_page` now renders photo effects (a port of
   the app's filter stack on Fabric's Canvas2D maths) and blends through the mask.
+- **Known limitations** — the app bakes the erase mask BEFORE filtering; `render_page`
+  and the studio's live preview apply it after the blend, so blur / sharpen pixels
+  along erased edges can differ slightly. The MCP blend is straight-alpha (the app's
+  is premultiplied), which differs only on partly erased pixels. MCP previews read
+  tint/duotone colours as hex or `rgb()/rgba()` only (others skip the tint).
 
 ---
 

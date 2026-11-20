@@ -109,7 +109,15 @@ Photo **effects** are shown too (named filter at its strength + every adjust
 slider, ported from the app's filter stack onto Fabric's own Canvas2D filter maths;
 the vignette overlay is not drawn), and the **Filter brush** mask (`filterMask`)
 blends the original back in: per pixel `original·(1−m) + filtered·m`, then the
-erase mask is applied on top — the same order as the app.
+erase mask is applied. Known preview differences from the app (approximations,
+accepted): the app bakes the erase mask into the photo BEFORE filtering, while
+`render_page` (and the brush studio's live preview) apply it AFTER the blend — this
+only changes blur / sharpen pixels along erased edges; the MCP blend is done in
+straight alpha (the app's canvas blend is premultiplied), which only differs on
+partly erased pixels; colours in `tintColor` / duotone are read as hex or
+`rgb()/rgba()` — anything else (e.g. named colours) skips that tint in the preview;
+and the MCP port follows Fabric's Canvas2D maths, so it can differ by a few levels
+from the app's WebGL output.
 
 ## 5. Tool catalog (53 tools)
 

@@ -44,7 +44,7 @@ import { FabricImage } from 'fabric';
 import { useProjectStore } from '@/stores/projectStore';
 import { useEditorStore } from '@/stores/editorStore';
 import { useAppStore } from '@/stores/appStore';
-import { computeImagePlacement, renderPageStatic, applyEffects, displayRectOf } from '@/engine/pageRenderer';
+import { computeImagePlacement, renderPageStatic, applyEffects, displayRectOf, loadEraseMask, loadFilterMask } from '@/engine/pageRenderer';
 import { maskPathData, buildMaskPath } from '@/engine/maskShapes';
 import { blendThroughMask } from '@/engine/maskBlend';
 import { loadImageDataUrl } from '@/engine/imageLoader';
@@ -235,10 +235,16 @@ async function loadAll() {
     clip = buildClip(pi);
     // Resume a previous session: the saved mask is the starting state (raw PNG
     // — the thumbnail loader would turn it into an alpha-less JPEG).
+    // Read through the renderer's guarded loaders: a path that could escape the
+    // album folder (absolute, drive letter, `..`) is refused (null) here too.
+    const loadErase = () => loadEraseMask(folder, pi!.eraseMask);
+    const loadFilter = () => loadFilterMask(folder, pi!.filterMask);
     const startMask = fxMode ? pi.filterMask : pi.eraseMask;
     if (startMask) {
       try {
-        const m = await loadImg(await window.pebble.readImageBase64(`${folder}/${startMask}`));
+        const url = await (fxMode ? loadFilter() : loadErase());
+        if (!url) throw new Error('mask unavailable');
+        const m = await loadImg(url);
         mc.clearRect(0, 0, W, H);
         if (m.naturalWidth === W && m.naturalHeight === H) {
           mc.drawImage(m, 0, 0); // same resolution → exact 1:1 copy (no resampling)
@@ -256,7 +262,7 @@ async function loadAll() {
     const otherMask = fxMode ? pi.eraseMask : pi.filterMask;
     let otherImg: HTMLImageElement | null = null;
     if (otherMask) {
-      try { otherImg = await loadImg(await window.pebble.readImageBase64(`${folder}/${otherMask}`)); } catch { otherImg = null; }
+      try { const url = await (fxMode ? loadErase() : loadFilter()); otherImg = url ? await loadImg(url) : null; } catch { otherImg = null; }
     }
     if (fxMode && otherImg) {
       keep = makeCanvas(W, H);
