@@ -123,6 +123,22 @@ All tools take `project` (the project name or .pebble path). Page tools take
 - `set_theme {project, themeId}`
 - `update_album {project, name?, coverTitle?, coverSubtitle?, coverDate?, pageBackgroundColor?}`
 
+## AI Enhance (identity-safe re-imagining — read `pebble-enhance` first)
+New scene / wardrobe / lighting via the user's own image API, then the ORIGINAL
+face is composited back. Full-res goes only to the provider + disk; you get ≤ 640 px
+previews. Outputs: `<album>/enhanced/<stem>/attempt-<n>.png`, `final.jpg` (registered).
+- `enhance_provider_status {}` — configured?, provider, model, keyHint (never the key), supportsMask.
+- `enhance_get_queue {project}` — scenePrompt, identityText, keepFace, maxAttempts, provider, items (status, attempts + metrics, resultPath), counts.
+- `enhance_set_settings {project, scenePrompt?, identityText?, keepFace?, maxAttempts?}`
+- `enhance_set_queue {project, add?: [relativePath], remove?: [relativePath]}`
+- `enhance_set_status {project, filename, status, note?}` — pending/generating/review/compositing/done/failed/skipped.
+- `enhance_generate {project, filename, prompt, keepFace?, size?, quality?}` → attempt n, metrics
+  (yawDiff/pitchDiff/rollDiff °, similarity), verdictHint + preview. Pass: yaw/pitch ≤ 8°, roll ≤ 6°. Enforces maxAttempts.
+- `enhance_compare_faces {project, filename, variant?}` — source | variant face crops (variant = n or "final").
+- `enhance_composite {project, filename, variant?, feather?=0.12, toneMatch?=0.85, expand?=1.05, maskTop?=0.35}`
+  → final.jpg + metrics (alignmentResidualPx, scale, rotationDeg, maskPx) + preview + blend crop.
+- `enhance_view {project, filename, which: source|attempt|final, attempt?, maxWidth?}`
+
 ## Utilities (not tied to a project)
 - `find_duplicate_folders {roots[], threshold?=0.7, matchBy?='name_date', skipSystemDirs?=true, maxResults?=100}`
   — find duplicate FOLDERS + stray duplicate files within/across the given roots

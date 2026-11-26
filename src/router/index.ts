@@ -14,6 +14,7 @@ export const router = createRouter({
     { path: '/collage', name: 'collage', component: () => import('@/views/CollageView.vue') },
     { path: '/duplicates', name: 'duplicates', component: () => import('@/views/DuplicateFinderView.vue') },
     { path: '/pixart', name: 'pixart', component: () => import('@/views/PixartView.vue') },
+    { path: '/enhance', name: 'enhance', component: () => import('@/views/EnhanceView.vue') },
     { path: '/folder-duplicates', name: 'folder-duplicates', component: () => import('@/views/FolderDupView.vue') },
   ],
 });

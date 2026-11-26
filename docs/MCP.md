@@ -43,7 +43,8 @@ the studio offers.
 
 `mcp/pebble-mcp-server.mjs` is a **standalone Node process** that an AI agent
 launches over **stdio** (newline-delimited JSON-RPC 2.0, the MCP stdio transport).
-It depends only on Node built-ins + `sharp`.
+It depends only on Node built-ins + `sharp` (the AI Enhance tools additionally
+load `@vladmandic/face-api` lazily — see §10).
 
 It does **not** require the desktop app to be running. It reads and writes the same
 `.pebble` JSON files the app uses (in `~/Documents/Pebble`), so:
@@ -119,7 +120,7 @@ partly erased pixels; colours in `tintColor` / duotone are read as hex or
 and the MCP port follows Fabric's Canvas2D maths, so it can differ by a few levels
 from the app's WebGL output.
 
-## 5. Tool catalog (53 tools)
+## 5. Tool catalog (62 tools)
 
 | Group | Tools |
 |---|---|
@@ -131,6 +132,7 @@ from the app's WebGL output.
 | Text / proverbs | `add_text`, `add_proverb`, `update_text` (incl. `curve` for bent/circular text), `remove_text` |
 | Cutouts / stickers | `remove_background` (client-side AI, optional saveAsSticker), `list_custom_stickers`, `add_sticker` (svg / emoji / custom `file`) |
 | Album | `set_theme`, `update_album` (incl. slideshow: interval, turn style/speed, music playlist), `list_music` |
+| AI Enhance | `enhance_provider_status`, `enhance_get_queue`, `enhance_set_settings`, `enhance_set_queue`, `enhance_set_status`, `enhance_generate`, `enhance_compare_faces`, `enhance_composite`, `enhance_view` — see §10 |
 | Utilities | `find_duplicate_folders` (duplicate folders + files across roots; metadata-only, containment similarity, within/across scope) |
 
 Every edit tool loads the `.pebble`, mutates it, and saves immediately (+ `.bak`),
@@ -140,8 +142,9 @@ mirroring the app's "edit = persisted" contract.
 
 `mcp/skills/*.md` teach the agent: the app's purpose (`pebble-overview`), the
 recommended workflow (`pebble-workflow`), the filename-label system
-(`pebble-labels`), the catalogs (`pebble-catalogs`), and a tool cheat-sheet
-(`pebble-tools`). The agent fetches them with `read_skill`; `pebble_guide` points
+(`pebble-labels`), the catalogs (`pebble-catalogs`), a tool cheat-sheet
+(`pebble-tools`), and the AI Enhance loop with its verdict thresholds
+(`pebble-enhance`). The agent fetches them with `read_skill`; `pebble_guide` points
 the way.
 
 ## 7. How to extend the server (apply the parity rule)
@@ -170,7 +173,9 @@ the wider filesystem:
   `<sourceFolder>/cutouts/` (`remove_background`) and erase masks to
   `<sourceFolder>/.pebble_masks/` (`erase_image_region`, `mask_image_filter_region`;
   every save is a NEW `<imageId>_<timestamp>.png` / `<imageId>_fx_<timestamp>.png`,
-  older ones stay on disk). Both paths are validated to
+  older ones stay on disk), and AI Enhance outputs to
+  `<sourceFolder>/enhanced/<stem>/` (`attempt-<n>.png`, `final.jpg` — the only
+  files the server overwrites, and only its own outputs). All are validated to
   stay inside the album folder (same containment + symlink checks as image reads;
   a `.pebble_masks` that resolves outside the album is refused).
 - **Image reads are confined to the project's album `sourceFolder`.** Every
@@ -196,3 +201,82 @@ server, its skills, and the config JSONs as **extraResources**
 via `PEBBLE_CONFIG_DIR` / `PEBBLE_ASSETS_DIR` / `PEBBLE_SKILLS_DIR`.
 
 See `mcp/README.md` for run/debug details and the full env-var table.
+
+## 10. AI Enhance — identity-safe re-imagining
+
+The **AI Enhance** studio (Welcome tool card / editor top bar → *Enhance*) lets the
+user change a photo's **scene, wardrobe and lighting** with their own image API
+while every person keeps their **real face**. The UI only prepares the job (queue,
+scene wish, identity paragraph, provider settings) and hands the agent ONE prompt;
+the agent runs the loop through the `enhance_*` tools (code: `mcp/enhance/`).
+
+### The loop (per queued photo)
+
+```
+ enhance_get_queue ──▶ enhance_generate ──▶ judge preview + metrics ──fail──▶ refine prompt ─┐
+                        ▲  (≤ maxAttempts)          │ pass                                     │
+                        └───────────────────────────┼──────────────────────────────────────────┘
+                                                    ▼
+                                    enhance_composite (ORIGINAL face back) ──▶ check blend crop
+                                                    │                     └─ seam? re-run with more feather
+                                                    ▼
+                         enhanced/<stem>/final.jpg, registered in imageRegistry, status done
+```
+
+1. **Generate** — `enhance_generate` sends the photo (EXIF-upright, long side ≤ 2048)
+   to the configured provider with the agent's prompt + a pose-lock line. When the
+   provider accepts a mask (OpenAI / OpenAI-compatible) and `keepFace` is on, a mask
+   PNG keeps the face pixels (opaque feathered face, transparent = regenerate);
+   otherwise the identity paragraph is appended to the prompt. Output:
+   `enhanced/<stem>/attempt-<n>.png` (status `review`).
+2. **Judge** — the result carries face metrics for source and variant (largest face,
+   `@vladmandic/face-api` on the CPU, weights loaded from the package — no network):
+   `yawDiff` / `pitchDiff` / `rollDiff` (degrees, geometric estimates from 68
+   landmarks, meant for differences) and `similarity` (1 − descriptor distance).
+   Pass: yaw/pitch ≤ 8°, roll ≤ 6°, face detected, scene right. `enhance_compare_faces`
+   shows source | variant face crops side by side.
+3. **Composite** — `enhance_composite` aligns the ORIGINAL face onto the variant with a
+   least-squares similarity transform from 5 landmarks (eye centres, nose tip, mouth
+   corners), warps it bilinearly, masks it with a convex landmark polygon (jaw + brows
+   lifted by `maskTop`, scaled by `expand`) feathered inward by a 3-pass box blur
+   (`feather` = fade width as a fraction of the face width), matches skin tone with a
+   Reinhard transfer in CIE Lab over the face region (σ ratio clamped to 0.7–1.4,
+   blended by `toneMatch`) and writes `final.jpg` (JPEG q92, the variant's resolution).
+   The final is registered like a `remove_background` cutout, the attempt is marked
+   `accepted` and the item `done`. Re-running only re-composites (no API cost).
+
+### Tools
+
+| Tool | Does |
+|---|---|
+| `enhance_provider_status {}` | configured?, provider, model, key hint, `supportsMask` — never the key |
+| `enhance_get_queue {project}` | settings + items (status, attempts with metrics, resultPath) + counts |
+| `enhance_set_settings {project, scenePrompt?, identityText?, keepFace?, maxAttempts?}` | parity with the studio form |
+| `enhance_set_queue {project, add?, remove?}` | parity with ticking photos (registry relativePaths) |
+| `enhance_set_status {project, filename, status, note?}` | e.g. `failed` / `skipped` with a reason |
+| `enhance_generate {project, filename, prompt, keepFace?, size?, quality?}` | one provider call → attempt PNG + metrics + ≤ 640 px preview; enforces `maxAttempts` |
+| `enhance_compare_faces {project, filename, variant?}` | source \| variant face crops (≤ 320 px each) + metrics |
+| `enhance_composite {project, filename, variant?, feather?, toneMatch?, expand?, maskTop?}` | final.jpg + metrics (`alignmentResidualPx`, `scale`, `rotationDeg`, `maskPx`) + preview + blend crop |
+| `enhance_view {project, filename, which, attempt?, maxWidth?}` | ≤ 640 px preview of source / attempt / final |
+
+### Privacy
+
+- **Full-resolution pixels go only to the user's configured provider and to disk**
+  (`<sourceFolder>/enhanced/`). Nothing is uploaded until the agent calls
+  `enhance_generate`; the `mock` provider uploads nothing at all.
+- **The agent only ever sees ≤ 640 px JPEG previews** (and ≤ 320 px face crops).
+- **The API key never leaves `<PEBBLE_HOME>/ai-provider.json`** (mode 0600, written by
+  the app via `mcp/enhance/providerConfig.mjs`): it is not in the MCP config JSON,
+  not in any `.pebble`, never returned by a tool, and provider error messages are
+  scrubbed of it.
+- **Deliberate parity exception:** saving / testing / clearing the provider settings
+  (the API key) is UI-only. An agent must never handle the key, so there is no MCP
+  tool to write it; `enhance_provider_status` is the read-only, key-free mirror.
+
+### Testing
+
+`node mcp/enhance/smoke.mjs <photo-with-a-face.jpg> [--out dir] [--keep]` builds a
+throwaway `PEBBLE_HOME` + album with the offline `mock` provider and drives the whole
+loop over stdio (initialize → tools/list → queue → settings → generate → compare →
+composite → queue → view), asserting the outputs, registry entry, metrics, sandbox
+confinement and a JSON-only stdout.

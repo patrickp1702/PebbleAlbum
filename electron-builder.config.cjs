@@ -23,7 +23,9 @@ module.exports = {
   // sharp's native binary lives in @img/* (0.33+), so unpack both from the asar.
   // ffmpeg-static ships a platform ffmpeg binary used to re-encode the recorded
   // slideshow into a standard MP4 — it must live outside the asar to be spawnable.
-  asarUnpack: ['**/node_modules/sharp/**/*', '**/node_modules/@img/**/*', '**/node_modules/ffmpeg-static/**/*'],
+  // @vladmandic/face-api ships its model weights as plain files the MCP server
+  // reads with fs (AI Enhance face alignment) — keep them (and tfjs) outside the asar.
+  asarUnpack: ['**/node_modules/sharp/**/*', '**/node_modules/@img/**/*', '**/node_modules/ffmpeg-static/**/*', '**/node_modules/@vladmandic/**/*', '**/node_modules/@tensorflow/**/*'],
   mac: {
     // A 1024² PNG is fine — electron-builder converts it to .icns at package time
     // (no macOS-only iconutil needed). Drop in build/icon.icns to override.

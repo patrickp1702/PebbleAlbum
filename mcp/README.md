@@ -3,7 +3,8 @@
 `pebble-mcp-server.mjs` is a standalone [Model Context Protocol](https://modelcontextprotocol.io)
 server that lets an external AI agent design PebbleAlbum projects. It speaks
 MCP over **stdio** (newline-delimited JSON-RPC 2.0) and depends only on Node
-built-ins + `sharp` (already in the app's `node_modules`).
+built-ins + `sharp` (already in the app's `node_modules`); the AI Enhance tools
+also use `@vladmandic/face-api` (+ `@tensorflow/tfjs`), loaded lazily on first use.
 
 It operates directly on the `.pebble` JSON files in `~/Documents/Pebble` — the
 exact files the desktop app reads/writes — so anything the agent builds shows up
@@ -29,7 +30,7 @@ In the app: **open a project → top bar → 🤖 Connect AI**. That panel gives
 2. A **starter prompt** that tells the agent to read the skills and design the
    open project.
 
-## Tools (53)
+## Tools (62)
 
 - **Discovery:** `pebble_guide`, `list_skills`, `read_skill`, `list_projects`,
   `get_project`, `get_page`, `list_images`, `list_catalog`.
@@ -45,8 +46,12 @@ In the app: **open a project → top bar → 🤖 Connect AI**. That panel gives
 - **Decorations:** `add_pattern`, `add_sticker`, `remove_decoration`.
 - **Text/proverbs:** `add_text`, `add_proverb`, `update_text`, `remove_text`.
 - **Album:** `set_theme`, `update_album`.
+- **AI Enhance (identity-safe re-imagining):** `enhance_provider_status`,
+  `enhance_get_queue`, `enhance_set_settings`, `enhance_set_queue`,
+  `enhance_set_status`, `enhance_generate`, `enhance_compare_faces`,
+  `enhance_composite`, `enhance_view` — code in `enhance/` (see "AI Enhance" below).
 - …plus culling, collage, cutout (`remove_background`) and utility tools — call
-  `tools/list` for the full set of 53.
+  `tools/list` for the full set of 62.
 
 Every edit tool loads the `.pebble`, mutates it, and saves immediately (+ `.bak`).
 Render tools return small JPEGs (default ≤640px, q62 — a page is ~5–80 KB) so the
@@ -56,6 +61,23 @@ model can *see* its work without large token cost.
 
 `skills/*.md` teach the agent the app's purpose, workflow, the filename-label
 system, and the catalogs. The agent fetches them via `read_skill`.
+
+## AI Enhance
+
+`enhance/tools.mjs` (registered via `registerEnhanceTools`) + `enhance/face.mjs`
+(@vladmandic/face-api, CPU, weights from the package — no network),
+`enhance/composite.mjs` (5-point similarity alignment, feathered landmark mask,
+Lab tone transfer) and `enhance/providers.mjs` (OpenAI images/edits, Gemini
+generateContent, OpenAI-compatible, offline `mock`).
+
+- **Provider config:** `<PEBBLE_HOME>/ai-provider.json` (mode 0600), written by the
+  app's Enhance studio via `enhance/providerConfig.mjs`. The API key lives ONLY
+  there: it is never put in the MCP config JSON, never written to a `.pebble`, and
+  never returned or logged by a tool (`enhance_provider_status` shows a key hint).
+- **Writes:** only `<sourceFolder>/enhanced/<stem>/attempt-<n>.png` and `final.jpg`
+  (the final is registered in `imageRegistry`).
+- **Offline test:** `node mcp/enhance/smoke.mjs <photo-with-a-face.jpg> [--keep]`
+  drives the whole loop over stdio with the `mock` provider in a temp folder.
 
 ## Env vars
 

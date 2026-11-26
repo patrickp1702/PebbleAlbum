@@ -67,6 +67,14 @@ const api: PebbleApi = {
   // AI / MCP
   getMcpConnectInfo: () => ipcRenderer.invoke('ai:mcpConfig'),
 
+  // AI Enhance — image provider settings (key stays in <Pebble>/ai-provider.json)
+  getAiProviderStatus: () => ipcRenderer.invoke('enhance:providerStatus'),
+  getAiProviderConfig: () => ipcRenderer.invoke('enhance:providerGet'),
+  saveAiProviderConfig: (cfg) => ipcRenderer.invoke('enhance:providerSave', cfg),
+  testAiProvider: (cfg) => ipcRenderer.invoke('enhance:providerTest', cfg),
+  clearAiProviderConfig: () => ipcRenderer.invoke('enhance:providerClear'),
+  findProjectForFolder: (folder) => ipcRenderer.invoke('enhance:findProjectForFolder', folder),
+
   // Cutout Studio + custom stickers
   saveCutout: (sourceFolder, baseName, dataUrl) => ipcRenderer.invoke('cutout:save', sourceFolder, baseName, dataUrl),
   saveSticker: (dataUrl, name) => ipcRenderer.invoke('stickers:save', dataUrl, name),

@@ -23,6 +23,8 @@ so the desktop app reflects your edits when the user opens/reloads the project.
 - Decorate: `add_pattern` (behind photos), `add_sticker` (emoji or SVG, in front).
 - Text: `add_text`, `add_proverb`, `update_text` — movable, rotatable, any font.
 - Album: `set_theme`, `update_album`.
+- **AI Enhance** a photo — new scene/wardrobe/lighting via the user's image API,
+  the ORIGINAL face composited back (`enhance_*` tools; read `pebble-enhance`).
 
 ## Golden rules
 1. **Always `pebble_guide` → read `pebble-gotchas` + a skill or two → then

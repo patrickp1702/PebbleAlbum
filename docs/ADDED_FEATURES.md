@@ -574,6 +574,58 @@ brush it away from some areas (they show the original photo) and back in elsewhe
 
 ---
 
+## AI Enhance — identity-safe re-imagining — 2026-11
+
+A studio (`/enhance`, `src/views/EnhanceView.vue`) for re-imagining photos — new
+scene, wardrobe, lighting — **without changing who is in them**. You queue photos,
+describe the scene, keep the identity paragraph, set up an image API, and copy ONE
+prompt into your AI agent. The agent runs the loop through the pebble-album MCP
+server (`enhance_*` tools, `mcp/enhance/`): it generates a variant through your API,
+judges the pose from a small preview plus face metrics, retries with a better
+prompt (up to *max attempts*), then has the app **composite the ORIGINAL face** onto
+the accepted variant with skin-tone matching. Finals land in
+`<photo folder>/enhanced/<stem>/final.jpg` and are added to the album's photos.
+
+*Why:* image models redraw faces — even "keep the face" prompts drift in eyes, jaw
+and skin. Getting the pose right is something a model can do; keeping a real person
+recognisable is not. So the model only supplies the scene, and the real face pixels
+are put back by the app.
+
+- **Entry points** — Welcome → Tools → **AI Enhance** opens a start screen: **Open a
+  folder…** (reuses the folder's saved project, else creates and **saves** a real
+  project for it, so the MCP server can find the `.pebble`) or pick a saved project.
+  From the editor, the top-bar **Enhance** button opens the studio for the current
+  album. Pixart/Collage's in-memory pages don't count as a project.
+- **Studio** — a photo grid (checkbox = queued, status badge
+  pending/review/done/failed/skipped, the final's thumbnail + *Show in folder*);
+  **Scene** and **Identity** cards (identity text with *Reset to default*, *Keep the
+  face pixels during generation* = inpainting mask when the provider supports it,
+  *max attempts* 1–6); an **Image API** card (OpenAI, Gemini, any OpenAI-compatible
+  endpoint, or an offline Mock; Save / Test connection / Clear); then the steps
+  *Copy MCP config → Copy the Enhance prompt → paste into your agent*, with a live
+  preview of the prompt. **Reload results** re-reads the project file.
+- **The queue lives in the project** (`PebbleProject.enhance`). The agent edits the
+  same file while the studio is open, so the studio saves by **merging**: it re-reads
+  the file and re-applies only the settings and queue changes you made, so it never
+  overwrites the agent's attempts, statuses or registered finals.
+- **MCP parity** — every UI action has a tool: `enhance_set_settings` (scene,
+  identity, keep-face, max attempts), `enhance_set_queue` (the photo picker),
+  `enhance_set_status`, `enhance_get_queue`, `enhance_provider_status`, plus the
+  agent-only loop tools (`enhance_generate`, `enhance_compare_faces`,
+  `enhance_composite`, `enhance_view`). The one deliberate exception is the Image
+  API form (save / test / clear the key): an agent must never handle the key, so it
+  only gets the key-free `enhance_provider_status`. See `docs/MCP.md` §10.
+- **Privacy** — photos are uploaded **only to the provider you configure**, and
+  **only when the agent runs `enhance_generate`**. Nothing is sent when you queue
+  photos, save settings or test the connection (the test only lists models). The
+  agent itself only ever sees **≤ 640 px previews**; full-resolution pixels go only
+  to your provider and to disk. The API key is stored in
+  `<Pebble folder>/ai-provider.json` with file mode **0600**. It is never written
+  into a `.pebble`, never put in the MCP config the app copies, and never returned
+  by an MCP tool (they only report a masked hint like `sk-…k3Qz`).
+
+---
+
 ## Scope notes (research-preview build)
 
 This build prioritises a **runnable core + complete documentation**. The

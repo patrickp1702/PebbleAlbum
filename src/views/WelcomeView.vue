@@ -7,7 +7,8 @@
  *                 projects folder). A card opens its project; its trash button
  *                 deletes it (after a confirm dialog). Empty state says what to do.
  *   3. Tools    — the standalone tools (no project needed): Collage Creator,
- *                 Duplicate Finder, Duplicate Folders, Pixart.
+ *                 Duplicate Finder, Duplicate Folders, Pixart, AI Enhance
+ *                 (AI Enhance works on a saved project: it opens/creates one).
  */
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -38,6 +39,7 @@ const TOOLS: { to: string; icon: IconName; title: string; text: string }[] = [
   { to: '/pixart', icon: 'brush', title: 'Pixart — Photo Editor', text: 'Edit one photo: layer, erase, adjust, filter, save.' },
   { to: '/duplicates', icon: 'search', title: 'Duplicate Finder', text: 'Group similar and burst photos, then move the extras aside.' },
   { to: '/folder-duplicates', icon: 'folders', title: 'Duplicate Folders', text: 'Find folders and files duplicated across drives.' },
+  { to: '/enhance', icon: 'sparkles', title: 'AI Enhance', text: 'Re-imagine the scene and wardrobe with your AI agent — the real face stays.' },
 ];
 
 async function refresh() {

@@ -351,6 +351,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); stopAutopl
       <div class="w-px h-5 bg-pebble-border mx-1.5" />
       <AppButton size="md" variant="ghost" icon="images" title="Choose which photos from the folder are used in the album" @click="showSelect = true"><span class="hidden xl:inline">Select images</span></AppButton>
       <AppButton size="md" variant="ghost" icon="bot" title="Let an AI agent edit this album through the built-in MCP server" @click="showAi = true"><span class="hidden xl:inline">Connect AI</span></AppButton>
+      <AppButton size="md" variant="ghost" icon="sparkles" title="AI Enhance — re-imagine scene and wardrobe with your agent, keeping the real faces" @click="router.push({ path: '/enhance', query: { from: 'editor' } })"><span class="hidden xl:inline">Enhance</span></AppButton>
       <AppButton size="md" variant="secondary" icon="play" title="Fullscreen slideshow preview" @click="previewMode = !previewMode">{{ previewMode ? 'Edit' : 'Preview' }}</AppButton>
       <AppButton size="md" variant="secondary" icon="save" :title="`Save (${MOD}S)`" @click="saveAndAnnounce">Save</AppButton>
       <AppButton size="md" icon="upload" title="Export the album as PDF or images" @click="router.push('/export')">Export</AppButton>

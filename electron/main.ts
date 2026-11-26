@@ -17,6 +17,7 @@ import { registerFilesIpc } from './ipc/files.ipc';
 import { registerCutoutIpc } from './ipc/cutout.ipc';
 import { registerMusicIpc } from './ipc/music.ipc';
 import { registerFolderDupIpc } from './ipc/folderdup.ipc';
+import { registerEnhanceIpc } from './ipc/enhance.ipc';
 
 const __dirnameLocal = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow: BrowserWindow | null = null;
@@ -103,6 +104,7 @@ app.whenReady().then(() => {
   registerCutoutIpc();
   registerMusicIpc();
   registerFolderDupIpc();
+  registerEnhanceIpc();
   createWindow();
 
   app.on('activate', () => {

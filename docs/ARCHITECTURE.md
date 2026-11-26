@@ -44,7 +44,8 @@ PebbleAlbum is a two-process Electron app:
                 │  (preload.ts exposes a safe API)               │
 ┌───────────────┴──────────────────────────────────────────────▼─────────────┐
 │                          Main process (Node)                                 │
-│   IPC handlers: folder·image·thumbnail·project·export·analyze·files·ai·app   │
+│   IPC handlers: folder·image·thumbnail·project·export·analyze·files·ai·      │
+│                 enhance·app                                                  │
 │   Native: fs, dialog, shell, Sharp (thumbnails/EXIF/resizing), PDFKit (PDF)  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -78,11 +79,14 @@ See §12.
 | `electron/ipc/thumbnail.ipc.ts` | Sharp thumbnails with mtime-keyed cache |
 | `electron/ipc/project.ipc.ts` | `.pebble` load/save/autosave, `.bak`, recents |
 | `electron/ipc/export.ipc.ts` | PDF (PDFKit) + JPEG/PNG sequence (Sharp), progress |
-| `electron/ipc/ai.ipc.ts` | Builds the MCP connect config JSON + starter prompt (`getMcpConnectInfo`) |
+| `electron/ipc/ai.ipc.ts` | Builds the MCP connect config JSON + starter prompts, incl. the AI Enhance prompt template `promptEnhance` (`getMcpConnectInfo`) |
+| `electron/ipc/enhance.ipc.ts` | AI Enhance: image-provider settings (`<Pebble>/ai-provider.json`, 0600) get/save/test/clear/status via `mcp/enhance/providerConfig.mjs` + `providers.mjs`; `findProjectForFolder` |
 | `mcp/pebble-mcp-server.mjs` | Standalone MCP server (the AI tool surface; edits `.pebble` directly) |
+| `mcp/enhance/*` | AI Enhance engine shared by the MCP server and the main process: provider config (`providerConfig.mjs`), image-API adapters (`providers.mjs`), face detection/metrics, face composite, the `enhance_*` tools |
 | `mcp/skills/*.md` | Skill docs the agent reads (overview, workflow, labels, catalogs, tools) |
 | `assets/overlays/*.svg` · `assets/sticker/*.svg` | Themeable + colour SVG art (inlined at build via Vite `?raw`) |
 | `src/views/*` | Top-level screens (album: Welcome/Setup/Editor/Export; quick tools: `CollageView` `/collage`, `PixartView` `/pixart`, `DuplicateFinderView`, `FolderDupView`) |
+| `src/views/EnhanceView.vue` | AI Enhance studio (`/enhance`): opens/creates a SAVED project, edits `project.enhance` (queue + scene/identity settings) with merge-saves, Image API card, copies the MCP config + Enhance prompt, shows results |
 | `src/composables/*` | Shared UI orchestration over the stores — `useAddPhoto` (the one ＋ Add photo, used by PagePanel + PixartView) |
 | `src/components/canvas/*` | `AlbumCanvas` (Fabric), `PageTurnScene` (Three), `CanvasOverlay` |
 | `src/components/editor/*` | PageStrip, PagePanel, PropertiesPanel, **TextPropertiesPanel**, **AiConnectModal**, Layout/Theme/Decoration/Proverb panels, ImageStrip |
@@ -223,7 +227,8 @@ Parser: `src/engine/filenameParser.ts`. Format
 `files:moveToDuplicates` (reversible move into `<folder>/duplicate`),
 `collage:saveTemp|loadTemp|clearTemp` (the single hidden Collage-resume session file),
 `app:version|openExternal|reveal|home|pebbleFolder|checkUpdates`,
-`ai:mcpConfig` (MCP connect config + starter prompt),
+`ai:mcpConfig` (MCP connect config + starter prompts + the AI Enhance prompt template `promptEnhance`),
+`enhance:providerStatus|providerGet|providerSave|providerTest|providerClear|findProjectForFolder` (AI Enhance image-provider settings in `<Pebble>/ai-provider.json`, mode 0600 — the key never leaves the main process except into the local settings form),
 plus the `folder:changed` push event. The renderer-facing surface is the typed
 `PebbleApi` in `src/types/ipc.types.ts`.
 

@@ -35,6 +35,77 @@ export interface PebbleProject {
   history?: HistoryEntry[];
   /** Near-duplicate groups detected by the culling engine (members = relativePaths). */
   duplicateGroups?: DuplicateGroup[];
+  /** AI Enhance studio: scene/identity prompts + the per-photo queue the agent
+   *  works through (generate → review → composite the ORIGINAL face back). */
+  enhance?: EnhanceConfig;
+}
+
+// ---- AI Enhance (identity-safe scene/wardrobe re-imagining) -----------------
+
+/** Lifecycle of one queued photo. `review` = a variant exists, awaiting the
+ *  agent's verdict; `done` = `resultPath` holds the composited final. */
+export type EnhanceStatus = 'pending' | 'generating' | 'review' | 'compositing' | 'done' | 'failed' | 'skipped';
+
+/** Head-pose + detection metrics for the LARGEST face in an image. Angles in
+ *  degrees (geometric estimates from 68 landmarks, good for DIFFERENCES);
+ *  `box` is 0..1 fractions of the image. */
+export interface EnhanceFaceMetrics {
+  detected: boolean;
+  score?: number;
+  yaw?: number;
+  pitch?: number;
+  roll?: number;
+  /** Inter-ocular distance as a fraction of image width (framing/scale cue). */
+  eyeDistance?: number;
+  box?: { x: number; y: number; width: number; height: number };
+  faces?: number;
+}
+
+/** One generation call for a queued photo. `path` is relative to the album
+ *  folder: `enhanced/<stem>/attempt-<n>.png`. */
+export interface EnhanceAttempt {
+  n: number;
+  path: string;
+  prompt: string;
+  provider: string;
+  model: string;
+  createdAt: string;
+  width: number;
+  height: number;
+  verdict: 'pending' | 'accepted' | 'rejected';
+  note?: string;
+  metrics?: {
+    source?: EnhanceFaceMetrics;
+    generated?: EnhanceFaceMetrics;
+    yawDiff?: number;
+    pitchDiff?: number;
+    rollDiff?: number;
+    /** 0..1 face-embedding similarity (1 = identical); undefined if a face is missing. */
+    similarity?: number;
+  };
+}
+
+export interface EnhanceItem {
+  /** Registry `relativePath` of the source photo. */
+  filename: string;
+  status: EnhanceStatus;
+  attempts: EnhanceAttempt[];
+  /** `enhanced/<stem>/final.jpg` once composited (also registered in imageRegistry). */
+  resultPath?: string;
+  note?: string;
+  updatedAt: string;
+}
+
+export interface EnhanceConfig {
+  /** What should change: scene, wardrobe, lighting, setting. */
+  scenePrompt: string;
+  /** What must NOT change — the identity paragraph appended to every generation prompt. */
+  identityText: string;
+  /** Ask the provider to inpaint AROUND the face (mask) when it supports masks. */
+  keepFace: boolean;
+  /** Generation cap per photo (default 3). */
+  maxAttempts: number;
+  items: EnhanceItem[];
 }
 
 /** A cluster of near-duplicate photos with the best frame suggested as keeper. */

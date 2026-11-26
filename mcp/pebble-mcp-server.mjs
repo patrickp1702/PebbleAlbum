@@ -28,6 +28,7 @@ import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
+import { registerEnhanceTools } from './enhance/tools.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = process.env.PEBBLE_APP_ROOT || path.join(HERE, '..');
@@ -70,9 +71,13 @@ function themeById(id) { return THEMES.find((t) => t.id === id) || THEMES[0]; }
 // SECURITY SANDBOX. The agent may ONLY:
 //   • read/write the .pebble project file, inside PEBBLE_HOME (+ its .bak),
 //   • read image files INSIDE the project's album source folder, and
-//   • write new files ONLY into <sourceFolder>/cutouts/ (remove_background) and
-//     <sourceFolder>/.pebble_masks/ (erase_image_region, mask_image_filter_region),
-//     both album-confined.
+//   • write new files ONLY into <sourceFolder>/cutouts/ (remove_background),
+//     <sourceFolder>/.pebble_masks/ (erase_image_region, mask_image_filter_region)
+//     and <sourceFolder>/enhanced/<stem>/ (AI Enhance: attempt-<n>.png from
+//     enhance_generate, final.jpg from enhance_composite — the only files this
+//     server ever overwrites, and only its own outputs), all album-confined.
+//   • read <PEBBLE_HOME>/ai-provider.json (AI Enhance provider + key). The key is
+//     sent only to the configured provider; no tool returns or logs it.
 // Forbidden: writes/deletes anywhere else, reads outside the album folder,
 // absolute paths, "../" traversal, and symlink escapes. (This server deletes no
 // files at all.) Every file-touching path goes through the helpers below.
@@ -1953,6 +1958,9 @@ tool('find_duplicate_folders', 'Find duplicate FOLDERS and files across one or m
       duplicateFolders: pairs.slice(0, maxResults),
     })];
   });
+
+// ---- AI Enhance (identity-safe re-imagining) — see mcp/enhance/tools.mjs ----
+registerEnhanceTools({ tool, schema, S, projProp, txt, imageContent, loadProject, saveProject, safeImagePath, imgRecord, clamp, toInt, PEBBLE_HOME, log });
 
 // ---------------------------------------------------------------------------
 // JSON-RPC over stdio (newline-delimited).

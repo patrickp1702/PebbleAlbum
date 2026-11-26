@@ -1,0 +1,11 @@
+import type { AiProviderConfig, AiProviderKind, AiProviderStatus } from '../../src/types/ipc.types';
+export const PROVIDER_FILE: string;
+export const PROVIDER_KINDS: AiProviderKind[];
+export const PROVIDER_DEFAULTS: Record<AiProviderKind, { label: string; model: string; baseUrl: string; supportsMask: boolean; size: string; quality: string }>;
+export function providerConfigPath(home: string): string;
+export function normalizeProviderConfig(cfg: Partial<AiProviderConfig>): AiProviderConfig;
+export function readProviderConfig(home: string): Promise<AiProviderConfig | null>;
+export function writeProviderConfig(home: string, cfg: Partial<AiProviderConfig>): Promise<AiProviderConfig>;
+export function clearProviderConfig(home: string): Promise<void>;
+export function keyHint(apiKey: string): string | null;
+export function providerStatus(cfg: AiProviderConfig | null, home: string): AiProviderStatus;

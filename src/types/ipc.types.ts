@@ -82,6 +82,9 @@ export interface McpConnectInfo {
   promptFast: string;
   /** Thorough "deep analysis + complete" starter prompt ({{PROJECT}} placeholder). */
   promptDeep: string;
+  /** AI Enhance prompt template. Placeholders: {{PROJECT}}, {{SCENE}}, {{IDENTITY}},
+   *  {{COUNT}}, {{MAX_ATTEMPTS}} (filled by the Enhance studio from project.enhance). */
+  promptEnhance: string;
   /** The ~/Documents/Pebble folder projects are saved in. */
   projectsFolder: string;
 }
@@ -148,6 +151,20 @@ export interface PebbleApi {
   /** Get the MCP connect config JSON + starter prompt for an external AI agent. */
   getMcpConnectInfo: () => Promise<McpConnectInfo>;
 
+  // AI Enhance — image-generation provider (key lives ONLY in <PEBBLE_HOME>/ai-provider.json, mode 0600)
+  /** Masked summary (never the key) — what the MCP server will use. */
+  getAiProviderStatus: () => Promise<AiProviderStatus>;
+  /** Full config for the settings form (local app only), or null if none saved. */
+  getAiProviderConfig: () => Promise<AiProviderConfig | null>;
+  /** Validate + save; returns the new status. */
+  saveAiProviderConfig: (cfg: AiProviderConfig) => Promise<AiProviderStatus>;
+  /** Cheap live check of the given (or saved) config, e.g. list models. */
+  testAiProvider: (cfg?: AiProviderConfig) => Promise<AiProviderTestResult>;
+  clearAiProviderConfig: () => Promise<void>;
+  /** Pick a folder and return a project for it: the saved .pebble whose
+   *  sourceFolder matches, or null when none exists (the view then creates one). */
+  findProjectForFolder: (folder: string) => Promise<string | null>;
+
   // Cutout Studio + custom stickers
   /** Save a transparent PNG cutout into `<sourceFolder>/cutouts/`. */
   saveCutout: (sourceFolder: string, baseName: string, dataUrl: string) => Promise<CutoutSaveResult>;
@@ -183,6 +200,41 @@ export interface PebbleApi {
   dupSetMatchBy: (matchBy: DupMatchBy) => Promise<DupReport>;
   onDupProgress: (cb: (p: DupProgress) => void) => void;
 }
+
+// ---- AI Enhance provider ----------------------------------------------------
+
+/** Image-generation backends the Enhance studio can call. `mock` is an offline
+ *  test provider (returns the input re-tinted) used by the smoke tests. */
+export type AiProviderKind = 'openai' | 'gemini' | 'openai_compatible' | 'mock';
+
+export interface AiProviderConfig {
+  provider: AiProviderKind;
+  apiKey: string;
+  /** Model id, e.g. gpt-image-2.5-sunburst / gemini-3.1-flash-image (defaults in mcp/enhance/providerConfig.mjs). */
+  model: string;
+  /** API base URL (required for openai_compatible; defaults otherwise). */
+  baseUrl?: string;
+  /** Provider-specific output size hint, e.g. "auto" | "1024x1536". */
+  size?: string;
+  /** Provider-specific quality hint, e.g. "high" | "medium". */
+  quality?: string;
+  updatedAt?: string;
+}
+
+export interface AiProviderStatus {
+  configured: boolean;
+  provider: AiProviderKind | null;
+  model: string | null;
+  baseUrl: string | null;
+  /** e.g. "sk-…k3Qz" — never the full key. */
+  keyHint: string | null;
+  /** Whether this provider accepts an inpainting mask (keep-face mode). */
+  supportsMask: boolean;
+  /** Absolute path of the config file. */
+  file: string;
+}
+
+export interface AiProviderTestResult { ok: boolean; message: string; latencyMs?: number }
 
 /** A slideshow music track (bundled default or user library). */
 export interface MusicTrack { path: string; name: string; source: 'bundled' | 'library' }

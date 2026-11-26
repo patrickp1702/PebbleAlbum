@@ -46,6 +46,27 @@ const PROMPT_DEEP = `You are connected to my PebbleAlbum studio via its MCP serv
 
 Never stretch or over-crop; use only my photos. Prioritise quality over speed.`;
 
+/** AI Enhance (Enhance studio → "Copy prompt"). Placeholders {{PROJECT}}, {{SCENE}},
+ *  {{IDENTITY}}, {{COUNT}}, {{MAX_ATTEMPTS}} are filled by src/views/EnhanceView.vue.
+ *  Tool names + thresholds must match mcp/skills/pebble-enhance.md. */
+const PROMPT_ENHANCE = `You are connected to my PebbleAlbum studio via its MCP server ("pebble-album"). Task: AI-ENHANCE the queued photos of project "{{PROJECT}}" — change the scene / wardrobe / lighting as I describe, but keep every person's REAL face: the app composites the ORIGINAL face back onto the generated image and matches the skin tone, so your job is to get a variant whose pose, head angle and framing match the original.
+
+Scene I want: {{SCENE}}
+
+Identity rules (include them in EVERY generation prompt):
+{{IDENTITY}}
+
+Workflow — follow it exactly, keep previews small:
+1. \`pebble_guide\`, then \`read_skill "pebble-enhance"\` (the loop, verdict thresholds, gotchas).
+2. \`enhance_get_queue { "project": "{{PROJECT}}" }\` — {{COUNT}} queued photo(s) with status, earlier attempts and whether my image provider is configured. Skip items already \`done\`; stop and tell me if no provider is configured.
+3. For each \`pending\` / \`review\` photo (treat a photo stuck in \`generating\` as \`pending\` — the agent before you was interrupted):
+   a. Write the generation prompt: the scene above adapted to THIS photo (people count, pose, framing — \`enhance_view which:"source"\` if you need to look), plus the identity rules. Call \`enhance_generate { project, filename, prompt }\`. The app sends the full-resolution photo to my configured image API and returns a small preview plus face metrics (yawDiff / pitchDiff / rollDiff in degrees, similarity 0..1).
+   b. Judge the variant: head angle must match (yawDiff and pitchDiff ≤ 8°, rollDiff ≤ 6°), framing similar, face detected, scene as requested. Use \`enhance_compare_faces\` when unsure. If it fails, refine the prompt (state the exact head direction, gaze, crop and how many people) and generate again — at most {{MAX_ATTEMPTS}} attempts per photo, then \`enhance_set_status { status: "failed", note }\` and move on.
+   c. When a variant passes: \`enhance_composite { project, filename, variant }\` — the original face is aligned onto it and the skin tone matched. Check the returned blend crop: if the seam or tone shows, re-run with a larger \`feather\` (0.18–0.25) or a different \`toneMatch\`; if the face sits wrong, generate again instead.
+4. Finish with \`enhance_get_queue\` and report: done / failed with the reason for each failure. Tell me to reload the project — the finals are registered as album photos under \`enhanced/\`.
+
+Rules: never alter identity in your prompts; never exceed {{MAX_ATTEMPTS}} generations per photo; previews are deliberately low-res — do not request full-size images; do not touch album pages unless I ask. If an \`enhance_generate\` call times out, do NOT retry blindly: call \`enhance_get_queue\` first — the attempt usually landed and still counts.`;
+
 export function registerAiIpc(): void {
   ipcMain.handle('ai:mcpConfig', (): McpConnectInfo => {
     const serverPath = resolveServerPath();
@@ -71,6 +92,7 @@ export function registerAiIpc(): void {
       configJson: JSON.stringify(config, null, 2),
       promptFast: PROMPT_FAST,
       promptDeep: PROMPT_DEEP,
+      promptEnhance: PROMPT_ENHANCE,
       projectsFolder: home,
     };
   });
